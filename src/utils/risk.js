@@ -84,8 +84,8 @@ function laborShortageRisk(workers, tasks) {
     : probability;
 
   const headline = top
-    ? `${zoneName(top.task.zoneId)} likely short ${top.gap} certified ${top.task.skill}${top.gap === 1 ? "" : "s"} within ${top.task.deadlineDays} day${top.task.deadlineDays === 1 ? "" : "s"}.`
-    : "Workforce supply meets all upcoming task requirements.";
+    ? `${zoneName(top.task.zoneId)} short ${top.gap} ${top.task.skill}${top.gap === 1 ? "" : "s"} in ${top.task.deadlineDays} day${top.task.deadlineDays === 1 ? "" : "s"}`
+    : "Crews cover all upcoming work";
 
   // Suggest a healthy source zone with the largest pool of that skill
   let sourceZone = null;
@@ -103,9 +103,9 @@ function laborShortageRisk(workers, tasks) {
   const transferCount = top ? Math.min(top.gap, sourceZone ? sourceZone.count : top.gap) : 0;
   const recommendation = top
     ? sourceZone && transferCount > 0
-      ? `Transfer ${transferCount} ${top.task.skill}${transferCount === 1 ? "" : "s"} from ${zoneName(sourceZone.id)} · post requisition for the rest.`
-      : `Activate hiring requisition + cross-zone search for ${top.task.skill}.`
-    : "Maintain current allocation.";
+      ? `Move ${transferCount} ${top.task.skill}${transferCount === 1 ? "" : "s"} from ${zoneName(sourceZone.id)}`
+      : `Open requisition for ${top.task.skill}s`
+    : "No action needed";
 
   return {
     id: "risk-shortage",
@@ -115,18 +115,10 @@ function laborShortageRisk(workers, tasks) {
     probability: Math.round(probability),
     postProbability: Math.round(postProbability),
     severity: severityFromProbability(probability),
-    basis: "Based on 14-day staffing trend · upcoming task pipeline · certification expiry schedule",
-    causes: top
-      ? [
-          `${top.task.needed} ${top.task.skill}s required by T-${top.task.deadlineDays}d`,
-          `Only ${available[top.task.skill] || 0} certified ${top.task.skill}s available`,
-          `${totalGap} total skill-positions short across ${worstByTask.length} task${worstByTask.length === 1 ? "" : "s"}`,
-        ]
-      : ["No critical gaps detected in 7-day horizon"],
+    basis: "Based on upcoming task pipeline and certified roster",
     recommendation,
-    resolveLabel: "Resolve · Transfer + Recruit",
     resolveSummary: top
-      ? `Transferred ${transferCount} from ${sourceZone ? zoneName(sourceZone.id) : "site pool"} · requisition opened`
+      ? `Moved ${transferCount} from ${sourceZone ? zoneName(sourceZone.id) : "site pool"}`
       : "No action required",
     goto: top ? `/control?mode=task` : null,
   };
@@ -161,8 +153,8 @@ function fatigueRisk(workers) {
   const worstDisc = Object.entries(buckets).sort((a, b) => b[1] - a[1])[0];
 
   const headline = flaggedAny > 0
-    ? `${flaggedAny} worker${flaggedAny === 1 ? "" : "s"} crossing safety thresholds${worstDisc ? ` — ${worstDisc[0]} crews most exposed` : ""}.`
-    : "All crews within safe rotation parameters.";
+    ? `${flaggedAny} worker${flaggedAny === 1 ? "" : "s"} past the 7-day shift limit${worstDisc ? ` (${worstDisc[0]} most exposed)` : ""}`
+    : "All crews within rotation policy";
 
   return {
     id: "risk-fatigue",
@@ -172,17 +164,11 @@ function fatigueRisk(workers) {
     probability: Math.round(probability),
     postProbability: Math.round(postProbability),
     severity: severityFromProbability(probability),
-    basis: "Using fatigue threshold model · 7-day rotation policy · overtime tracking",
-    causes: [
-      `${flaggedDays} worker${flaggedDays === 1 ? "" : "s"} on duty ${CONSECUTIVE_DAYS_LIMIT}+ consecutive days`,
-      `${flaggedFatig} worker${flaggedFatig === 1 ? "" : "s"} above fatigue index ${FATIGUE_THRESHOLD}`,
-      `${nightHeavy} on extended night-shift streak`,
-    ],
+    basis: "Based on consecutive-days policy and fatigue index",
     recommendation: flaggedAny > 0
-      ? `Auto-rotate ${flaggedAny} flagged worker${flaggedAny === 1 ? "" : "s"} → mandatory 2-day rest · backfill from rested pool.`
-      : "Maintain current rotation cadence.",
-    resolveLabel: "Resolve · Auto-Rotate Crews",
-    resolveSummary: `${flaggedAny} flagged worker${flaggedAny === 1 ? "" : "s"} scheduled for rest · rested substitutes assigned`,
+      ? `Rotate ${flaggedAny} flagged worker${flaggedAny === 1 ? "" : "s"} to 2-day rest`
+      : "No action needed",
+    resolveSummary: `${flaggedAny} worker${flaggedAny === 1 ? "" : "s"} scheduled for rest, rested subs called in`,
     goto: flaggedAny > 0 ? `/control?mode=rotation` : null,
   };
 }
@@ -221,8 +207,8 @@ function delayRisk(workers, tasks) {
   const recoveredSlip = +(slipDays * 0.55).toFixed(1);
 
   const headline = top
-    ? `${top.task.title} (${zoneName(top.task.zoneId)}) — ${Math.round(probability)}% probability of ${slipDays.toFixed(1)}-day slip.`
-    : "All tasks tracking within tolerance.";
+    ? `${top.task.title} likely to slip ${slipDays.toFixed(1)}d (${zoneName(top.task.zoneId)})`
+    : "All tasks on schedule";
 
   return {
     id: "risk-delay",
@@ -232,20 +218,12 @@ function delayRisk(workers, tasks) {
     probability: Math.round(probability),
     postProbability: Math.round(postProbability),
     severity: severityFromProbability(probability),
-    basis: "Using task dependency forecast · workforce gap model · deadline proximity",
-    causes: top
-      ? [
-          `Workforce gap: ${top.gap} ${top.task.skill}${top.gap === 1 ? "" : "s"} missing`,
-          `Priority: ${top.task.priority} · deadline T-${top.task.deadlineDays}d`,
-          `Estimated slip: ${slipDays.toFixed(1)} day${slipDays === 1 ? "" : "s"} if uncorrected`,
-        ]
-      : ["No high-risk overlaps detected"],
+    basis: "Based on workforce gap, task priority, and deadline proximity",
     recommendation: top
-      ? `Reallocate ${Math.max(2, top.gap)} ${top.task.skill}${top.gap === 1 ? "" : "s"} from healthy zones — projected recovery ~${recoveredSlip}d.`
-      : "Continue scheduled execution.",
-    resolveLabel: "Resolve · Reallocate Workers",
+      ? `Move ${Math.max(2, top.gap)} ${top.task.skill}${top.gap === 1 ? "" : "s"} in — recovers ${recoveredSlip}d`
+      : "Continue current plan",
     resolveSummary: top
-      ? `${Math.max(2, top.gap)} workers reallocated · ${recoveredSlip}d recovered of ${slipDays.toFixed(1)}d slip`
+      ? `${Math.max(2, top.gap)} workers moved in, ${recoveredSlip}d recovered of ${slipDays.toFixed(1)}d slip`
       : "No action required",
     goto: top ? `/control?mode=recovery&zone=${top.task.zoneId}` : null,
     extra: top ? { taskId: top.task.id, zoneId: top.task.zoneId, slipDays, recoveredSlip } : null,

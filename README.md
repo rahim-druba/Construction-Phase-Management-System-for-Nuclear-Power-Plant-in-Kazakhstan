@@ -23,19 +23,26 @@ The hackathon brief calls for full Human Resource management — recruitment, al
 
 The Dashboard renders an **HR Lifecycle Coverage strip** at the top so judges see all eight badges at a glance, each linking to where the function is implemented.
 
-### Predictive Layer — *AI Risk Forecast*
+### Predictive Layer — *This Week's Risk Forecast*
 
-On top of the eight functions, Atomforce includes a **rule-based predictive analytics engine** that converts the operational data into three forward-looking risk scores for the next 7 days:
+On top of the eight HR functions, the Dashboard carries a **rule-based forecast panel** written for a site manager, not a data scientist. It surfaces the three issues most likely to cause a schedule slip or safety incident in the next 7 days, and ships with a one-click fix per row.
 
-| Risk                  | Triggered when                                                                  | Mitigation                              |
+| Risk                  | Triggered when                                                                  | Recommended action                      |
 | --------------------- | ------------------------------------------------------------------------------- | --------------------------------------- |
-| **Labor Shortage**    | needed > available certified workers and a task starts within 7 days            | Transfer + recruit                      |
-| **Crew Fatigue**      | crew-share above the 7-consecutive-day / fatigue-70 threshold                   | Auto-rotate to mandatory rest           |
-| **Schedule Delay**    | task-level workforce gap × priority × deadline-proximity score                  | Reallocate from healthy zones           |
+| **Labor Shortage**    | upcoming task needs more certified workers than the live roster can supply      | Move workers in from a healthy zone     |
+| **Crew Fatigue**      | a worker has been on duty 7+ consecutive days, or fatigue index ≥ 70            | Rotate flagged workers to 2-day rest    |
+| **Schedule Delay**    | task workforce gap × priority × deadline-proximity score above threshold        | Reallocate workers from healthy zones   |
 
-Each prediction shows a probability %, severity color, the data basis it draws on (e.g. *"14-day staffing trend · upcoming task pipeline · certification expiry schedule"*), and a one-click **Resolve** button that visibly drops the probability — the before/after demo moment.
+Each row shows:
+- A plain-English headline (e.g. *"Reactor Building short 2 Concrete Workers in 3 days"*)
+- A **Likelihood · 7-day** score (0–100%) and a **Low / Medium / High / Critical** word, so the number isn't ambiguous
+- A one-line foreman-style recommendation (e.g. *"Move 2 Concrete Workers from Auxiliary Building"*)
+- A single **Resolve** button — clicking it drops the score visibly (e.g. 82% → 29%) and the headline strikes through. Click **Undo** to revert. This is the demo before/after moment.
 
-We deliberately do **not** claim deep learning. We claim *predictive analytics* and *rule-based decision support*, which is honest and judge-safe.
+The header explains the metric in plain words:
+> *Each score is the likelihood the issue causes a schedule slip or safety incident within 7 days. Built from the live task pipeline, fatigue thresholds, and certification expiry.*
+
+We deliberately do **not** claim deep learning. We say *rule-based decision support*, which is honest and judge-safe.
 
 ---
 
@@ -47,7 +54,11 @@ One screen merging every supervision view a site director needs.
 
 - **HR Lifecycle Coverage strip** — 8 badges, one per HR function
 - **KPI strip**: Total Workers · Available Today · Shortage Alerts · Fatigue Alerts · Expiring Certs
-- **AI Risk Forecast** *(predictive analytics engine)* — three rule-based predictions for the next 7 days: *Labor Shortage Risk*, *Crew Fatigue Risk*, *Schedule Delay Risk*. Each row shows probability %, severity color, the data basis it draws on, and a one-click **Resolve** button that drops the probability live (e.g. 82% → 29%). One-click **Resolve All** for the demo before/after moment.
+- **This Week's Risk Forecast** — rule-based predictions for the next 7 days, written for a site manager. Three rows: *Labor Shortage*, *Crew Fatigue*, *Schedule Delay*. Each row carries:
+  - the issue in one sentence (e.g. *"Reactor Building short 2 Concrete Workers in 3 days"*)
+  - the recommended action in one sentence (e.g. *"Move 2 Concrete Workers from Auxiliary Building"*)
+  - a **Likelihood · 7-day** score (0–100%) with a **Low / Medium / High / Critical** word so the number is never ambiguous
+  - a single **Resolve** button that drops the score live (e.g. 82% → 29%) — the before/after demo moment. **Undo** restores it.
 - **Weekly Attendance Trend** (required vs available, 14d)
 - **Workers by Discipline** (pie)
 - **Zone Staffing Coverage** (bar, 8 NPP-2 zones)
@@ -69,9 +80,9 @@ The "AI brain" page. Three modes that share one decision surface.
   - Workers on duty 7+ consecutive days flagged in amber
   - Right panel: **Schedule Rest** for all flagged workers (forces 2 days off in their plan)
 - **Delay Recovery mode**
-  - Pick a delayed zone → AI **Predicted Risks · Next 7 Days** mini-card appears (zone-level shortage / fatigue / delay probabilities)
-  - Eligible movers from healthy zones, slider for headcount → live recovery-days estimate, source breakdown
-  - Click **Reallocate Workers** → the zone risk index drops in place (the per-zone before/after).
+  - Pick a delayed zone → an inline **Likelihood next 7 days** strip appears for that zone (Shortage / Fatigue / Delay percentages, with the same explanation as the dashboard panel).
+  - Eligible movers from healthy zones, slider for headcount → live recovery-days estimate, source breakdown.
+  - Click **Reallocate Workers** → the zone scores drop in place with `(was 72%)` next to the new value — the per-zone before/after.
 - **Optimize Workforce** button — runs the right action for the current mode in one click
 
 Trilingual UI: **English / Русский / Қазақша** (top-right toggle, persisted).
@@ -90,13 +101,16 @@ Trilingual UI: **English / Русский / Қазақша** (top-right toggle, 
 
 ```
 src/
-  components/   # AppShell, Sidebar, Topbar, StatCard, Pill, FatigueBar, PageHeader
+  components/   # AppShell, Sidebar, Topbar, StatCard, Pill, FatigueBar,
+                # PageHeader, AIRiskPanel (forecast card)
   pages/
-    index.js    # Executive Dashboard
-    control.js  # Workforce Control Center
+    index.js    # Executive Dashboard (KPIs · forecast · recruitment · onboarding · KZ%)
+    control.js  # Workforce Control Center (Allocate / Rotate / Recover)
   data/         # workers.js · tasks.js · zones.js · recruitment.js
-  utils/        # workforce.js (allocation/rotation/recovery logic) · risk.js (predictive engine) · i18n.js
-  components/   # …including AIRiskPanel.js
+  utils/
+    workforce.js # crew allocation, rotation, recovery logic
+    risk.js      # rule-based predictive engine (shortage / fatigue / delay)
+    i18n.js      # EN / RU / KZ translations
   styles/       # Global Tailwind + theme
 ```
 
@@ -122,18 +136,18 @@ npm start
 
 **Minute 1 — Dashboard (visibility + prediction)**
 
-1. Point to the **HR Lifecycle Coverage strip** — "Eight HR functions, end to end."
-2. Drop into the **AI Risk Forecast** panel:
-   - "Labor shortage at 82%, crew fatigue at 74%, cable task delay at 68% — predicted for the next 7 days."
-   - Click **Resolve All**. Watch the bars drop live: 82 → 29, 74 → 28, 68 → 25. Aggregate index drops in the header.
-   - "Our engine moves us from reactive scheduling to predictive risk prevention."
+1. Point to the **HR Lifecycle Coverage strip** — *"Eight HR functions, end to end."*
+2. Drop into **This Week's Risk Forecast**:
+   - Read the header line out loud: *"Each score is the likelihood the issue causes a schedule slip or safety incident within 7 days."*
+   - Read the three rows the way a site manager would: *"Reactor Building short 2 Concrete Workers — 62% high. 102 workers past the 7-day shift limit — 90% critical. Containment Pour likely to slip 2.5 days — 64% high."*
+   - Click **Resolve** on each row. The score drops in place with `was 82%` next to the new number, the headline strikes through, the recommendation flips to past-tense ("Moved 2 from Auxiliary Building"), and the *open issues* counter at the top decrements. *"Three problems, three actions, fixed before the morning huddle."*
 3. Show the KPI strip + **Recruitment Pipeline** + **Onboarding** + **Kazakhstan Local Content** donut at the 80% target.
 
 **Minute 2 — Control Center (action)**
 
-1. **Delay Recovery** mode → click *Turbine Hall* → notice the **Predicted Risks · Next 7 Days** mini-card appear at the top.
+1. **Delay Recovery** mode → click *Turbine Hall* → an inline strip at the top reads *"Likelihood next 7 days · Turbine Hall — Shortage 72% · Fatigue 41% · Delay 68%"*.
    - Set delay = 3 days, slide workers = 8 → click **Reallocate Workers**.
-   - Zone Risk Index drops in place — judges see the per-zone before/after.
+   - The strip refreshes live: *"Shortage 32% (was 72%) · Delay 25% (was 68%)"* — judges see the per-zone before/after.
 2. **Shift Rotation** mode → *Flagged* filter → click **Schedule Rest** → all flip to "Rest scheduled" with 2 days off.
 3. **Task Allocation** mode → *Primary Loop Pipe Welding* → **Auto-Rotate Fatigued** → **Assign Crew**. Done.
 
