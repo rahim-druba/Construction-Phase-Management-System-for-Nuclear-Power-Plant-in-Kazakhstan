@@ -2,12 +2,14 @@ import { useMemo } from "react";
 import Link from "next/link";
 import {
   Users, UserCheck, AlertTriangle, ShieldAlert, Wrench, MapPin, ArrowUpRight,
-  Flag, Cpu, ShieldX,
+  Flag, Cpu, ShieldX, UserPlus, GraduationCap, CalendarRange, ClipboardList,
+  Briefcase, BarChart3, Activity, Award,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from "recharts";
+import clsx from "clsx";
 
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
@@ -15,6 +17,7 @@ import Pill from "@/components/Pill";
 import { WORKERS } from "@/data/workers";
 import { TASKS } from "@/data/tasks";
 import { ZONES } from "@/data/zones";
+import { OPEN_POSITIONS, RECENT_HIRES, HIRING_TREND } from "@/data/recruitment";
 import { gapByDiscipline, gapBySkill, zoneName } from "@/utils/workforce";
 import { useLang } from "@/utils/i18n";
 
@@ -71,6 +74,18 @@ export default function Dashboard() {
     .sort((a, b) => a.cert.expiresInDays - b.cert.expiresInDays)
     .slice(0, 4);
 
+  // ==== Recruitment / Onboarding ====
+  const totalOpen      = OPEN_POSITIONS.reduce((s, p) => s + p.needed, 0);
+  const totalApplicants= OPEN_POSITIONS.reduce((s, p) => s + p.applicants, 0);
+  const avgTimeToFill  = Math.round(OPEN_POSITIONS.reduce((s, p) => s + p.daysOpen, 0) / OPEN_POSITIONS.length);
+  const criticalOpen   = OPEN_POSITIONS.filter((p) => p.urgency === "critical").length;
+  const onboarding     = RECENT_HIRES.filter((h) => h.onboardingPct < 100);
+  const openByDiscipline = useMemo(() => {
+    const m = {};
+    OPEN_POSITIONS.forEach((p) => { m[p.discipline] = (m[p.discipline] || 0) + p.needed; });
+    return Object.entries(m).map(([discipline, needed]) => ({ discipline, needed }));
+  }, []);
+
   return (
     <>
       <PageHeader
@@ -86,6 +101,38 @@ export default function Dashboard() {
           </>
         }
       />
+
+      {/* HR LIFECYCLE COVERAGE STRIP */}
+      <div className="card p-3 mb-4">
+        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 mr-1">
+            HR Lifecycle Coverage
+          </span>
+          {[
+            { id: "rec",   label: "Recruitment",   icon: UserPlus,       link: "#recruitment" },
+            { id: "onb",   label: "Onboarding",    icon: ClipboardList,  link: "#recruitment" },
+            { id: "alloc", label: "Allocation",    icon: Briefcase,      link: "/control?mode=task" },
+            { id: "rot",   label: "Rotation",      icon: CalendarRange,  link: "/control?mode=rotation" },
+            { id: "cert",  label: "Certification", icon: GraduationCap,  link: null },
+            { id: "plan",  label: "Planning",      icon: BarChart3,      link: null },
+            { id: "rec2",  label: "Recovery",      icon: Activity,       link: "/control?mode=recovery" },
+            { id: "loc",   label: "Local Content", icon: Flag,           link: null },
+          ].map((it) => {
+            const Icon = it.icon;
+            const cls = "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 ring-1 ring-inset bg-emerald-500/10 text-emerald-200 ring-emerald-500/30 hover:bg-emerald-500/20 transition-colors";
+            return it.link ? (
+              <Link key={it.id} href={it.link} className={cls}>
+                <Icon className="h-3.5 w-3.5" /> {it.label}
+              </Link>
+            ) : (
+              <span key={it.id} className={cls}>
+                <Icon className="h-3.5 w-3.5" /> {it.label}
+              </span>
+            );
+          })}
+          <span className="ml-auto text-[10px] text-slate-500">8 / 8 covered</span>
+        </div>
+      </div>
 
       {/* KPI ROW */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
@@ -252,6 +299,123 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* RECRUITMENT & ONBOARDING — addresses HR hiring lifecycle */}
+        <div id="recruitment" className="card p-4 lg:col-span-2 scroll-mt-24">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                <UserPlus className="h-4 w-4 text-atom-300" /> Recruitment Pipeline
+              </h3>
+              <p className="text-xs text-slate-400">Open positions, applicants, time-to-fill</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Pill tone="danger" dot>{criticalOpen} critical</Pill>
+              <Pill tone="muted">{OPEN_POSITIONS.length} reqs</Pill>
+            </div>
+          </div>
+
+          {/* Mini stats */}
+          <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
+            <MiniStat label="Open positions"   value={totalOpen}        tone="info" />
+            <MiniStat label="Applicants"       value={totalApplicants}  tone="ok" />
+            <MiniStat label="Avg time-to-fill" value={`${avgTimeToFill}d`} tone="warn" />
+            <MiniStat label="Hired (12m)"      value={HIRING_TREND.reduce((s,m)=>s+m.hired,0)} />
+          </div>
+
+          {/* Hiring trend */}
+          <div className="mt-3 h-44">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={HIRING_TREND} barGap={2}>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={11} />
+                <YAxis tickLine={false} axisLine={false} fontSize={11} width={28} />
+                <Tooltip />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="hired"    name="Hired"    fill="#22d3ee" radius={[3,3,0,0]} />
+                <Bar dataKey="attrited" name="Attrited" fill="#f472b6" radius={[3,3,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Top open positions table */}
+          <div className="mt-3 overflow-hidden rounded-lg border border-white/10">
+            <table className="table-base">
+              <thead>
+                <tr>
+                  <th>Role</th>
+                  <th className="text-center">Need</th>
+                  <th className="text-center">Apps</th>
+                  <th className="text-center">Open</th>
+                  <th>Source</th>
+                  <th>Urgency</th>
+                </tr>
+              </thead>
+              <tbody>
+                {OPEN_POSITIONS.slice(0, 5).map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <div className="text-white text-sm">{p.role}</div>
+                      <div className="text-[11px] text-slate-500">{p.discipline} · {p.manager}</div>
+                    </td>
+                    <td className="text-center tabular-nums text-slate-200">{p.needed}</td>
+                    <td className="text-center tabular-nums text-emerald-300">{p.applicants}</td>
+                    <td className="text-center tabular-nums text-slate-300">{p.daysOpen}d</td>
+                    <td>
+                      <Pill tone={p.source === "local" ? "info" : p.source === "foreign" ? "muted" : "warn"} className="capitalize">
+                        {p.source}
+                      </Pill>
+                    </td>
+                    <td>
+                      <Pill tone={p.urgency === "critical" ? "danger" : p.urgency === "high" ? "warn" : "muted"} className="capitalize">
+                        {p.urgency}
+                      </Pill>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ONBOARDING TRACKER — addresses HR onboarding step */}
+        <div className="card p-4 lg:col-span-1">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <ClipboardList className="h-4 w-4 text-atom-300" /> Onboarding
+            </h3>
+            <Pill tone="info">{onboarding.length} active</Pill>
+          </div>
+          <p className="text-xs text-slate-400">Recent hires · last 30 days</p>
+
+          <ul className="mt-3 space-y-2.5 max-h-[420px] overflow-auto pr-1">
+            {RECENT_HIRES.map((h, i) => (
+              <li key={i} className="rounded-lg border border-white/10 px-3 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm text-white truncate">{h.name}</div>
+                    <div className="text-[11px] text-slate-500 truncate">{h.role} · D+{h.startedDaysAgo}</div>
+                  </div>
+                  <Pill tone={h.origin === "local" ? "info" : "muted"} className="capitalize">{h.origin}</Pill>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className={clsx(
+                        "h-full rounded-full transition-all",
+                        h.onboardingPct >= 90 ? "bg-emerald-500" :
+                        h.onboardingPct >= 50 ? "bg-atom-400" : "bg-amber-500"
+                      )}
+                      style={{ width: `${h.onboardingPct}%` }}
+                    />
+                  </div>
+                  <span className="text-[11px] tabular-nums text-slate-400 w-9 text-right">{h.onboardingPct}%</span>
+                  {h.onboardingPct === 100 && <Award className="h-3.5 w-3.5 text-emerald-400" />}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
         {/* KZ Local Content — premium */}
         <div className="card p-4 lg:col-span-3">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-center">
@@ -308,5 +472,20 @@ export default function Dashboard() {
         </div>
       </div>
     </>
+  );
+}
+
+function MiniStat({ label, value, tone = "muted" }) {
+  const cls = {
+    info:  "text-atom-200",
+    ok:    "text-emerald-300",
+    warn:  "text-amber-300",
+    muted: "text-white",
+  }[tone];
+  return (
+    <div className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-slate-400">{label}</div>
+      <div className={clsx("mt-0.5 text-lg font-semibold tabular-nums", cls)}>{value}</div>
+    </div>
   );
 }

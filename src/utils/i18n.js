@@ -42,6 +42,7 @@ const dict = {
       subtitle: "Allocate · Rotate · Recover — one decision per click.",
       modes: {
         task: "Task Allocation",
+        rotation: "Shift Rotation",
         recovery: "Delay Recovery",
       },
       sections: {
@@ -92,6 +93,7 @@ const dict = {
       subtitle: "Распределение · Ротация · Восстановление — одно решение за клик.",
       modes: {
         task: "Назначение задач",
+        rotation: "Ротация смен",
         recovery: "Восстановление сроков",
       },
       sections: {
@@ -142,6 +144,7 @@ const dict = {
       subtitle: "Тағайындау · Ротация · Қалпына келтіру — бір шертумен.",
       modes: {
         task: "Тапсырма тағайындау",
+        rotation: "Ауысым ротациясы",
         recovery: "Кешеуілді қалпына келтіру",
       },
       sections: {

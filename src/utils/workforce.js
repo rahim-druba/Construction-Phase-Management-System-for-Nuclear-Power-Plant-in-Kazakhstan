@@ -115,6 +115,26 @@ export function gapBySkill(workers, tasks) {
     .sort((a, b) => b.gap - a.gap);
 }
 
+// 7-day rotation forecast for a worker. Pattern: 4×Day, 3×Night, 2×Off.
+// We offset by worker.id so the site has staggered crews, not everyone resting at once.
+const ROTATION_PATTERN = ["D", "D", "D", "D", "N", "N", "N", "O", "O"];
+export function rotationPlan(worker, days = 7) {
+  const offset = worker.id % ROTATION_PATTERN.length;
+  return Array.from({ length: days }, (_, i) =>
+    ROTATION_PATTERN[(offset + i) % ROTATION_PATTERN.length]
+  );
+}
+
+// Apply mandatory rest: replace the first 2 days of the plan with "O".
+export function applyRestPlan(plan) {
+  return plan.map((s, i) => (i < 2 ? "O" : s));
+}
+
+// True when the worker has crossed the consecutive-days threshold.
+export function isFatigueFlagged(worker, threshold = 7) {
+  return worker.daysWorked >= threshold;
+}
+
 // Find a fresh, in-zone replacement for a fatigued worker.
 // Used by Auto-Rotate: swap workers with fatigue >= threshold for rested ones.
 export function freshReplacement(workers, fatiguedWorker, excludedIds = new Set()) {
