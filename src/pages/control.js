@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import {
   Wrench, Sparkles, MapPin, Clock, CheckCircle2, AlertTriangle, RotateCcw,
   ArrowRight, Activity, Cpu, RefreshCw, ShieldCheck, Users,
-  Sun, Moon, BedDouble, CalendarRange,
+  Sun, Moon, BedDouble, CalendarRange, Brain, TrendingDown,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -17,6 +17,7 @@ import {
   suggestCrew, recoverySuggestions, certLabel, zoneName, freshReplacement,
   rotationPlan, applyRestPlan, isFatigueFlagged,
 } from "@/utils/workforce";
+import { predictZoneRisks } from "@/utils/risk";
 import { useLang } from "@/utils/i18n";
 
 const PRIORITY_TONES = { critical: "danger", high: "warn", medium: "info" };
@@ -134,6 +135,12 @@ export default function ControlCenter() {
     recoverySelected.forEach((w) => { m[w.zone] = (m[w.zone] || 0) + 1; });
     return Object.entries(m).map(([z, count]) => ({ zone: z, count, name: zoneName(z) }));
   }, [recoverySelected]);
+
+  // ============= ZONE RISK FORECAST (for Recovery mode) =============
+  // Snapshot of risks for the selected zone — recomputes when workers are moved
+  // so the panel visibly drops after "Reallocate".
+  const baselineZoneRisks = useMemo(() => predictZoneRisks(zoneId, { workers: WORKERS }), [zoneId]);
+  const liveZoneRisks     = useMemo(() => predictZoneRisks(zoneId, { workers: liveWorkers }), [zoneId, liveWorkers]);
 
   // ============= ACTIONS =============
   function commitAssignment() {
@@ -420,6 +427,8 @@ export default function ControlCenter() {
               recoveryDays={recoveryDays}
               recoveryPct={recoveryPct}
               sourceBreakdown={sourceBreakdown}
+              baselineZoneRisks={baselineZoneRisks}
+              liveZoneRisks={liveZoneRisks}
             />
           )}
         </div>
@@ -684,6 +693,7 @@ function TaskCenter({ task, result, effectiveCrew, fatiguedInCrew, allowExpiring
 function RecoveryCenter({
   zoneId, delayDays, setDelayDays, moveCount, setMoveCount,
   candidates, selected, recoveryDays, recoveryPct, sourceBreakdown,
+  baselineZoneRisks, liveZoneRisks,
 }) {
   const z = ZONES.find((x) => x.id === zoneId);
 
@@ -700,6 +710,14 @@ function RecoveryCenter({
         </div>
         <Pill tone={STATUS_TONE[z.status]} className="capitalize">{z.status}</Pill>
       </div>
+
+      {/* AI Predicted Risks for this zone — drops live as workers are reallocated */}
+      <ZoneRiskForecast
+        zoneId={zoneId}
+        zoneName={z.name}
+        baseline={baselineZoneRisks}
+        live={liveZoneRisks}
+      />
 
       {/* Inputs */}
       <div className="mt-3 grid grid-cols-2 gap-3">
@@ -954,5 +972,109 @@ function RotationCenter({ visible, stats, filter }) {
         </div>
       </div>
     </>
+  );
+}
+
+// =============== AI Zone Risk Forecast (Recovery mode) ===============
+const RISK_BAR_BY_SEV = {
+  critical: "from-rose-500 to-rose-400",
+  high:     "from-amber-500 to-amber-300",
+  medium:   "from-atom-500 to-atom-300",
+  low:      "from-emerald-500 to-emerald-300",
+};
+const RISK_TEXT_BY_SEV = {
+  critical: "text-rose-300",
+  high:     "text-amber-300",
+  medium:   "text-atom-200",
+  low:      "text-emerald-300",
+};
+const RISK_LABEL_BY_SEV = {
+  critical: "CRITICAL",
+  high:     "HIGH",
+  medium:   "MEDIUM",
+  low:      "LOW",
+};
+
+function ZoneRiskForecast({ zoneId, zoneName, baseline, live }) {
+  const aggBaseline = Math.round(baseline.reduce((s, r) => s + r.probability, 0) / baseline.length);
+  const aggLive     = Math.round(live.reduce((s, r) => s + r.probability, 0) / live.length);
+  const delta = aggBaseline - aggLive;
+
+  return (
+    <div className="mt-3 rounded-lg border border-atom-500/30 bg-gradient-to-br from-atom-500/[0.06] via-white/[0.02] to-transparent p-3.5">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2">
+          <div className="grid h-7 w-7 place-items-center rounded-md bg-atom-500/15 ring-1 ring-atom-500/40">
+            <Brain className="h-3.5 w-3.5 text-atom-200" />
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-white">
+              Predicted Risks · Next 7 Days
+            </div>
+            <div className="text-[10px] text-slate-400">
+              For <span className="text-slate-200">{zoneName}</span> · rule-based forecast · refreshes as you reallocate
+            </div>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-[9px] uppercase tracking-wider text-slate-400">Zone Risk Index</div>
+          <div className="flex items-baseline justify-end gap-1.5">
+            <span className={clsx(
+              "text-lg font-semibold tabular-nums",
+              aggLive >= 70 ? "text-rose-300" :
+              aggLive >= 50 ? "text-amber-300" :
+              aggLive >= 30 ? "text-atom-200" : "text-emerald-300"
+            )}>
+              {aggLive}%
+            </span>
+            {delta > 0 && (
+              <span className="text-[10px] text-emerald-300 inline-flex items-center gap-0.5">
+                <TrendingDown className="h-3 w-3" />
+                −{delta}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {live.map((r, i) => {
+          const base = baseline[i];
+          const dropped = base.probability - r.probability;
+          return (
+            <div key={r.id} className="rounded-md bg-white/[0.03] ring-1 ring-inset ring-white/10 px-2.5 py-2">
+              <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-slate-400">
+                <span>{r.label}</span>
+                <span className={clsx("font-semibold tabular-nums tracking-normal text-xs", RISK_TEXT_BY_SEV[r.severity])}>
+                  {RISK_LABEL_BY_SEV[r.severity]}
+                </span>
+              </div>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className={clsx("text-xl font-semibold tabular-nums", RISK_TEXT_BY_SEV[r.severity])}>
+                  {r.probability}%
+                </span>
+                {dropped > 0 && (
+                  <span className="text-[10px] text-emerald-300 inline-flex items-center gap-0.5">
+                    <TrendingDown className="h-3 w-3" />
+                    −{dropped}
+                  </span>
+                )}
+              </div>
+              <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className={clsx("h-full rounded-full bg-gradient-to-r transition-all duration-700 ease-out", RISK_BAR_BY_SEV[r.severity])}
+                  style={{ width: `${r.probability}%` }}
+                />
+              </div>
+              <div className="mt-1 text-[10px] text-slate-400 truncate">{r.detail}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-2 text-[10px] text-slate-500">
+        Based on workforce gap model · 7-day task pipeline · fatigue threshold · refreshed live
+      </div>
+    </div>
   );
 }

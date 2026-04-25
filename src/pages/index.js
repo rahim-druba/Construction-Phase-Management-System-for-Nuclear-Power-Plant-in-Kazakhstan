@@ -14,6 +14,7 @@ import clsx from "clsx";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import Pill from "@/components/Pill";
+import AIRiskPanel from "@/components/AIRiskPanel";
 import { WORKERS } from "@/data/workers";
 import { TASKS } from "@/data/tasks";
 import { ZONES } from "@/data/zones";
@@ -142,6 +143,9 @@ export default function Dashboard() {
         <StatCard label={t("dash.kpi.fatigue")}        value={stats.fatigue}   sub=">7 days or high"    icon={AlertTriangle} tone="warn"  trend="+3" />
         <StatCard label={t("dash.kpi.expiring")}       value={stats.expiring}  sub={`${stats.expired} already expired`} icon={ShieldAlert} tone="warn" trend="+2" />
       </div>
+
+      {/* AI RISK FORECAST — predictive analytics engine */}
+      <AIRiskPanel />
 
       {/* MAIN GRID */}
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">

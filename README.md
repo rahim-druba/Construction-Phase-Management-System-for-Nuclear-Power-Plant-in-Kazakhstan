@@ -23,6 +23,20 @@ The hackathon brief calls for full Human Resource management — recruitment, al
 
 The Dashboard renders an **HR Lifecycle Coverage strip** at the top so judges see all eight badges at a glance, each linking to where the function is implemented.
 
+### Predictive Layer — *AI Risk Forecast*
+
+On top of the eight functions, Atomforce includes a **rule-based predictive analytics engine** that converts the operational data into three forward-looking risk scores for the next 7 days:
+
+| Risk                  | Triggered when                                                                  | Mitigation                              |
+| --------------------- | ------------------------------------------------------------------------------- | --------------------------------------- |
+| **Labor Shortage**    | needed > available certified workers and a task starts within 7 days            | Transfer + recruit                      |
+| **Crew Fatigue**      | crew-share above the 7-consecutive-day / fatigue-70 threshold                   | Auto-rotate to mandatory rest           |
+| **Schedule Delay**    | task-level workforce gap × priority × deadline-proximity score                  | Reallocate from healthy zones           |
+
+Each prediction shows a probability %, severity color, the data basis it draws on (e.g. *"14-day staffing trend · upcoming task pipeline · certification expiry schedule"*), and a one-click **Resolve** button that visibly drops the probability — the before/after demo moment.
+
+We deliberately do **not** claim deep learning. We claim *predictive analytics* and *rule-based decision support*, which is honest and judge-safe.
+
 ---
 
 ## The Two Pages
@@ -33,6 +47,7 @@ One screen merging every supervision view a site director needs.
 
 - **HR Lifecycle Coverage strip** — 8 badges, one per HR function
 - **KPI strip**: Total Workers · Available Today · Shortage Alerts · Fatigue Alerts · Expiring Certs
+- **AI Risk Forecast** *(predictive analytics engine)* — three rule-based predictions for the next 7 days: *Labor Shortage Risk*, *Crew Fatigue Risk*, *Schedule Delay Risk*. Each row shows probability %, severity color, the data basis it draws on, and a one-click **Resolve** button that drops the probability live (e.g. 82% → 29%). One-click **Resolve All** for the demo before/after moment.
 - **Weekly Attendance Trend** (required vs available, 14d)
 - **Workers by Discipline** (pie)
 - **Zone Staffing Coverage** (bar, 8 NPP-2 zones)
@@ -54,8 +69,9 @@ The "AI brain" page. Three modes that share one decision surface.
   - Workers on duty 7+ consecutive days flagged in amber
   - Right panel: **Schedule Rest** for all flagged workers (forces 2 days off in their plan)
 - **Delay Recovery mode**
-  - Pick a delayed zone → eligible movers from healthy zones
-  - Slider for headcount → live recovery-days estimate, source breakdown, **Reallocate Workers**
+  - Pick a delayed zone → AI **Predicted Risks · Next 7 Days** mini-card appears (zone-level shortage / fatigue / delay probabilities)
+  - Eligible movers from healthy zones, slider for headcount → live recovery-days estimate, source breakdown
+  - Click **Reallocate Workers** → the zone risk index drops in place (the per-zone before/after).
 - **Optimize Workforce** button — runs the right action for the current mode in one click
 
 Trilingual UI: **English / Русский / Қазақша** (top-right toggle, persisted).
@@ -79,7 +95,8 @@ src/
     index.js    # Executive Dashboard
     control.js  # Workforce Control Center
   data/         # workers.js · tasks.js · zones.js · recruitment.js
-  utils/        # workforce.js (allocation/rotation/recovery logic) · i18n.js
+  utils/        # workforce.js (allocation/rotation/recovery logic) · risk.js (predictive engine) · i18n.js
+  components/   # …including AIRiskPanel.js
   styles/       # Global Tailwind + theme
 ```
 
@@ -103,18 +120,21 @@ npm start
 
 ## 2-Minute Demo Script
 
-**Minute 1 — Dashboard (visibility, full HR lifecycle)**
+**Minute 1 — Dashboard (visibility + prediction)**
 
-1. Point to the **HR Lifecycle Coverage strip** — "We address all eight HR functions of an NPP site, end to end."
-2. Show the KPI strip → shortages → delayed zones panel.
-3. Scroll to the **Recruitment Pipeline** — "8 open requisitions, 142 applicants, 13-day average time-to-fill, with the local-vs-foreign sourcing mix already aligned to the state programme."
-4. Show the **Onboarding tracker** — "Six new hires in the last 30 days, completion percentages live."
-5. End on the **Kazakhstan Local Content** donut at the 80% target.
+1. Point to the **HR Lifecycle Coverage strip** — "Eight HR functions, end to end."
+2. Drop into the **AI Risk Forecast** panel:
+   - "Labor shortage at 82%, crew fatigue at 74%, cable task delay at 68% — predicted for the next 7 days."
+   - Click **Resolve All**. Watch the bars drop live: 82 → 29, 74 → 28, 68 → 25. Aggregate index drops in the header.
+   - "Our engine moves us from reactive scheduling to predictive risk prevention."
+3. Show the KPI strip + **Recruitment Pipeline** + **Onboarding** + **Kazakhstan Local Content** donut at the 80% target.
 
 **Minute 2 — Control Center (action)**
 
-1. **Shift Rotation** mode → click *Flagged* filter → "12 workers exceed the 7-day limit." Click **Schedule Rest** → all flip to "Rest scheduled" with 2 days off in their plan.
-2. **Delay Recovery** mode → click *Turbine Hall* → set delay = 3 days, slide workers = 8 → "1.5 days recovered, fatigue-safe, certs valid."
-3. **Task Allocation** mode → pick *Primary Loop Pipe Welding* → click **Auto-Rotate Fatigued** → click **Assign Crew**. Done.
+1. **Delay Recovery** mode → click *Turbine Hall* → notice the **Predicted Risks · Next 7 Days** mini-card appear at the top.
+   - Set delay = 3 days, slide workers = 8 → click **Reallocate Workers**.
+   - Zone Risk Index drops in place — judges see the per-zone before/after.
+2. **Shift Rotation** mode → *Flagged* filter → click **Schedule Rest** → all flip to "Rest scheduled" with 2 days off.
+3. **Task Allocation** mode → *Primary Loop Pipe Welding* → **Auto-Rotate Fatigued** → **Assign Crew**. Done.
 
-> "Two screens. Visibility, then action. Eight HR functions, end to end."
+> *"Atomforce moves workforce management from reactive scheduling to predictive risk prevention. Two screens. Visibility, then action. Eight HR functions, end to end."*
