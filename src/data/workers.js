@@ -111,7 +111,7 @@ function makeWorker(i) {
   };
 }
 
-const TOTAL = 96;
+const TOTAL = 248;
 export const WORKERS = Array.from({ length: TOTAL }, (_, i) => makeWorker(i));
 
 export const SKILL_LIST = SKILLS.map((s) => s.name);

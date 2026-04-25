@@ -98,6 +98,42 @@ export function recoverySuggestions(workers, delayedZoneId) {
   return movable;
 }
 
+// Per-skill required vs available (used by Dashboard alerts + Gap views)
+export function gapBySkill(workers, tasks) {
+  const required = {};
+  tasks.forEach((t) => { required[t.skill] = (required[t.skill] || 0) + t.needed; });
+  const available = {};
+  workers.forEach((w) => {
+    if (w.available && w.cert.status !== "expired") {
+      available[w.skill] = (available[w.skill] || 0) + 1;
+    }
+  });
+  const all = new Set([...Object.keys(required), ...Object.keys(available)]);
+  return Array.from(all)
+    .map((s) => ({ skill: s, required: required[s] || 0, available: available[s] || 0, gap: (required[s] || 0) - (available[s] || 0) }))
+    .filter((x) => x.required > 0)
+    .sort((a, b) => b.gap - a.gap);
+}
+
+// Find a fresh, in-zone replacement for a fatigued worker.
+// Used by Auto-Rotate: swap workers with fatigue >= threshold for rested ones.
+export function freshReplacement(workers, fatiguedWorker, excludedIds = new Set()) {
+  return workers
+    .filter((w) =>
+      w.id !== fatiguedWorker.id &&
+      !excludedIds.has(w.id) &&
+      w.skill === fatiguedWorker.skill &&
+      w.available &&
+      w.cert.status === "valid" &&
+      w.fatigue < 40
+    )
+    .sort((a, b) => {
+      const az = a.zone === fatiguedWorker.zone ? -10 : 0;
+      const bz = b.zone === fatiguedWorker.zone ? -10 : 0;
+      return (a.fatigue + az) - (b.fatigue + bz);
+    })[0];
+}
+
 export function downloadJSON(filename, data) {
   if (typeof window === "undefined") return;
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });

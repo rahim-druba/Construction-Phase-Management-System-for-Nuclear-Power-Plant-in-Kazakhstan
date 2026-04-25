@@ -1,35 +1,60 @@
-# Atomforce — NPP Workforce Intelligence Dashboard
+# Atomforce — Workforce Command System
 
-A polished, executive-grade web app for managing labor during nuclear power plant construction. Built for a 24-hour hackathon.
+> *We reduced workforce management complexity into two decisions: visibility and action.*
 
-## Modules
+A polished, executive-grade web app for managing labor during Nuclear Power Plant construction. Built for a 24-hour hackathon. **Two pages. One brain.**
 
-1. **Operations Dashboard** — KPIs, staffing trend, zone coverage, discipline mix, critical alerts
-2. **Workforce Roster** — searchable, filterable table of every worker on site
-3. **Smart Crew Allocation** — auto-suggests the best crew for any task, ranked by fatigue, certification, and zone proximity
-4. **Shift / Rotation Planner** — 7-day rotation forecast, auto-flags workers with 7+ consecutive days
-5. **Certification Tracker** — alerts for expired and expiring (≤30 days) certificates, with renewal pipeline
-6. **Workforce Gap Analysis** — required vs available by discipline and skill, plus Kazakhstan local-content chart (premium)
-7. **Delay Recovery Simulator** — pick a delayed zone, model worker re-allocation from healthy zones, see schedule impact
+---
 
-Trilingual UI: **English / Русский / Қазақша** (toggle in the top-right).
+## The Two Pages
+
+### 1. Executive Dashboard — *Visibility*
+
+One screen merging every supervision view a site director needs.
+
+- **KPI strip**: Total Workers · Available Today · Shortage Alerts · Fatigue Alerts · Expiring Certs
+- **Weekly Attendance Trend** (required vs available, 14d)
+- **Workers by Discipline** (pie)
+- **Zone Staffing Coverage** (bar, 8 NPP-2 zones)
+- **Operational Alerts**: skill shortages · delayed/at-risk zones · cert renewals
+- **Kazakhstan Local Content** donut + 80% target indicator (premium)
+
+### 2. Workforce Control Center — *Action*
+
+The "AI brain" page. Two modes that share one decision surface.
+
+- **Task Allocation mode**
+  - Pick a task on the left → ranked crew suggestion in the middle
+  - Right panel: **Assign Crew** + **Auto-Rotate Fatigued** (swaps tired workers for rested substitutes)
+- **Delay Recovery mode**
+  - Pick a delayed zone → eligible movers from healthy zones
+  - Slider for headcount → live recovery-days estimate, source breakdown, **Reallocate Workers** action
+- **Optimize Workforce** button — runs the right action for the current mode in one click
+
+Crew ranking factors: skill match, certification validity, fatigue score (0-100), and zone proximity.
+
+Trilingual UI: **English / Русский / Қазақша** (top-right toggle, persisted).
+
+---
 
 ## Tech Stack
 
 - **Next.js 14** (Pages Router, JS)
-- **Tailwind CSS 3**
+- **Tailwind CSS 3** with a custom nuclear/atom palette and dark "executive" theme
 - **Recharts** for charts
 - **lucide-react** icons
-- 100% frontend, fake JSON dataset baked into `src/data/`
+- 100% frontend, deterministic seeded fake dataset (248 workers, 12 tasks, 8 zones)
 
 ## Folder Structure
 
 ```
 src/
   components/   # AppShell, Sidebar, Topbar, StatCard, Pill, FatigueBar, PageHeader
-  pages/        # Next.js routes (one per module)
-  data/         # Fake datasets: workers, tasks, zones
-  utils/        # Allocation logic, i18n, helpers
+  pages/
+    index.js    # Executive Dashboard
+    control.js  # Workforce Control Center
+  data/         # workers.js · tasks.js · zones.js
+  utils/        # workforce.js (allocation/rotation/recovery logic) · i18n.js
   styles/       # Global Tailwind + theme
 ```
 
@@ -40,19 +65,28 @@ npm install
 npm run dev
 ```
 
-Then open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000).
 
-Build for production:
+Production build:
 
 ```bash
 npm run build
 npm start
 ```
 
-## Demo Script (2 minutes)
+---
 
-1. **Dashboard** — point to "Skill Shortages = 3" and the delayed zones panel
-2. **Smart Allocation** — pick "Primary Loop Pipe Welding" (8 welders), click *Assign 8*. Show that the panel ranks by fatigue + cert + in-zone proximity
-3. **Rotation Planner** — filter to *Flagged*, click *Auto-rotate flagged* — fatigue alerts resolve into scheduled rest
-4. **Delay Recovery** — pick Turbine Hall, set delay = 3 days, slide workers to move = 8, run simulation — see "1.0 days recovered"
-5. **Gap Analysis** — show the Kazakhstan local content donut at 80%+ — answers state programme requirements
+## 2-Minute Demo Script
+
+**Minute 1 — Dashboard (visibility)**
+
+Show: shortages strip, the delayed zones in the alerts panel, the KZ local-content donut. Mention the 80% state programme target.
+
+**Minute 2 — Control Center (action)**
+
+1. Switch to **Delay Recovery** mode, click **Turbine Hall**.
+2. Set delay = 3 days, slide workers = 8.
+3. Press **Optimize Workforce** → "1.5 days recovered, 5 workers from healthy zones, fatigue-safe, certs valid."
+4. Switch back to **Task Allocation**, pick *Primary Loop Pipe Welding*. Click **Auto-Rotate Fatigued** → tired welders are swapped for rested ones in-place. Click **Assign Crew**. Done.
+
+> "Two screens. Visibility, then action. That's construction management."

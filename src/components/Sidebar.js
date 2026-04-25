@@ -1,15 +1,6 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
-import {
-  LayoutDashboard,
-  Users,
-  Wrench,
-  CalendarRange,
-  ShieldCheck,
-  BarChart3,
-  Activity,
-  Atom,
-} from "lucide-react";
+import { LayoutDashboard, Cpu, Atom } from "lucide-react";
 import { useLang } from "@/utils/i18n";
 import clsx from "clsx";
 
@@ -18,13 +9,8 @@ export default function Sidebar() {
   const router = useRouter();
 
   const items = [
-    { href: "/",               label: t("nav.dashboard"),      icon: LayoutDashboard },
-    { href: "/workers",        label: t("nav.workers"),        icon: Users },
-    { href: "/assignments",    label: t("nav.assignments"),    icon: Wrench },
-    { href: "/rotation",       label: t("nav.rotation"),       icon: CalendarRange },
-    { href: "/certifications", label: t("nav.certifications"), icon: ShieldCheck },
-    { href: "/gaps",           label: t("nav.gaps"),           icon: BarChart3 },
-    { href: "/recovery",       label: t("nav.recovery"),       icon: Activity },
+    { href: "/",        label: t("nav.dashboard"), icon: LayoutDashboard, hint: "Visibility" },
+    { href: "/control", label: t("nav.control"),   icon: Cpu,             hint: "Action" },
   ];
 
   return (
@@ -38,7 +24,7 @@ export default function Sidebar() {
           <div className="text-base font-semibold text-white tracking-tight">
             {t("brand")}
           </div>
-          <div className="text-[11px] text-slate-400 uppercase tracking-wider">
+          <div className="text-[10px] text-slate-400 uppercase tracking-[0.18em]">
             {t("brandSub")}
           </div>
         </div>
@@ -58,15 +44,21 @@ export default function Sidebar() {
                 <Link
                   href={it.href}
                   className={clsx(
-                    "group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                    "group flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors",
                     active
                       ? "bg-atom-500/10 text-atom-200 ring-1 ring-inset ring-atom-500/30"
                       : "text-slate-300 hover:bg-white/5 hover:text-white"
                   )}
                 >
                   <Icon className={clsx("h-4 w-4", active ? "text-atom-300" : "text-slate-400 group-hover:text-slate-200")} />
-                  <span className="truncate">{it.label}</span>
-                  {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-atom-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />}
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate">{it.label}</div>
+                    <div className={clsx("text-[10px] uppercase tracking-wider",
+                      active ? "text-atom-400/80" : "text-slate-500")}>
+                      {it.hint}
+                    </div>
+                  </div>
+                  {active && <span className="h-1.5 w-1.5 rounded-full bg-atom-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />}
                 </Link>
               </li>
             );
