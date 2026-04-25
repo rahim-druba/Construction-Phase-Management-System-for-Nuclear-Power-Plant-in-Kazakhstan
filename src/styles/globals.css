@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #__next {
+  height: 100%;
+  background: #060912;
+  color: #e5e7eb;
+}
+
+body {
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle radial backdrop for premium feel */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(34,211,238,0.12), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(14,165,233,0.10), transparent 60%);
+  z-index: 0;
+}
+
+/* Scrollbar polish */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.32);
+  background-clip: padding-box;
+}
+
+@layer components {
+  .card {
+    @apply relative rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-sm shadow-card;
+  }
+  .card-hover {
+    @apply transition-colors hover:border-atom-500/40 hover:bg-white/[0.05];
+  }
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset;
+  }
+  .pill-ok      { @apply pill bg-emerald-500/10 text-emerald-300 ring-emerald-500/30; }
+  .pill-warn    { @apply pill bg-amber-500/10  text-amber-300   ring-amber-500/30; }
+  .pill-danger  { @apply pill bg-rose-500/10   text-rose-300    ring-rose-500/30; }
+  .pill-info    { @apply pill bg-atom-500/10   text-atom-300    ring-atom-500/30; }
+  .pill-muted   { @apply pill bg-white/5       text-slate-300   ring-white/10; }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-atom-400/60 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-atom-500 text-ink-950 hover:bg-atom-400;
+  }
+  .btn-ghost {
+    @apply btn border border-white/10 text-slate-200 hover:bg-white/5;
+  }
+
+  .input {
+    @apply w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-atom-500/60 focus:outline-none focus:ring-2 focus:ring-atom-500/20;
+  }
+
+  .table-base {
+    @apply w-full text-left text-sm;
+  }
+  .table-base thead th {
+    @apply sticky top-0 z-10 border-b border-white/10 bg-ink-900/80 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 backdrop-blur;
+  }
+  .table-base tbody td {
+    @apply border-b border-white/5 px-3 py-2.5 text-slate-200;
+  }
+  .table-base tbody tr:hover td {
+    @apply bg-white/[0.03];
+  }
+}
+
+/* Recharts dark theme tweaks */
+.recharts-default-tooltip {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  border-radius: 8px !important;
+}
+.recharts-tooltip-label,
+.recharts-tooltip-item {
+  color: #e5e7eb !important;
+}
+.recharts-cartesian-grid line {
+  stroke: rgba(255,255,255,0.06);
+}
+.recharts-cartesian-axis-tick text {
+  fill: #94a3b8;
+}
+.recharts-legend-item-text {
+  color: #cbd5e1 !important;
+}
