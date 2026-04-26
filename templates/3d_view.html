@@ -1,0 +1,544 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* 1. Remove large margins from main (leave 16px for a neat gap) */
+    main { padding: 1rem !important; }
+
+    /* 2. Remove max-width limit from base.html to stretch content full screen */
+    main .max-w-7xl { max-width: 100% !important; margin: 0 !important; }
+
+    /* 3. Fix the Canvas to the background under the sidebar (z-index 0) */
+    #c { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: auto; outline: none; }
+
+    /* 4. Info-panel dynamic content styles (Eco-Corporate theme) */
+    .info-tag { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 10px; font-weight: 700; margin-bottom: 12px; letter-spacing: 0.5px; }
+    .info-title { font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 4px; color: #006241; }
+    .info-sub { font-size: 12px; color: #1E3932; opacity: 0.7; margin-bottom: 16px; line-height: 1.5; }
+    .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #d4e9e2; font-size: 12px; }
+    .info-row:last-child { border: none; }
+    .info-key { color: #1E3932; opacity: 0.6; font-weight: 600; }
+    .info-val { color: #1E3932; font-weight: 700; text-align: right; max-width: 160px; }
+    .progress-bar { height: 6px; background: #f1f0eb; border-radius: 3px; margin: 12px 0 4px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+
+    /* Light scrollbar */
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #d4e9e2; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #00754A; }
+
+    /* Info panel slide animation */
+    .info-panel { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(120%); }
+    .info-panel.open { transform: translateX(0); }
+</style>
+
+<canvas id="c"></canvas>
+
+<div class="relative z-10 w-full h-[calc(100vh-2rem)] md:h-[calc(100vh-4rem)] pointer-events-none">
+
+    <div class="absolute top-0 left-0 flex gap-3 pointer-events-auto">
+        <div class="bg-white/95 backdrop-blur-md border border-[#d4e9e2] rounded-xl px-4 py-2 shadow-sm text-center min-w-[80px]">
+            <div class="text-xl font-bold text-[#006241]" id="kpi-objects">—</div>
+            <div class="text-[9px] text-[#1E3932] opacity-60 uppercase tracking-widest mt-1">Objects</div>
+        </div>
+        <div class="bg-white/95 backdrop-blur-md border border-[#d4e9e2] rounded-xl px-4 py-2 shadow-sm text-center min-w-[80px]">
+            <div class="text-xl font-bold text-orange-500" id="kpi-active">—</div>
+            <div class="text-[9px] text-[#1E3932] opacity-60 uppercase tracking-widest mt-1">Active</div>
+        </div>
+        <div class="bg-white/95 backdrop-blur-md border border-[#d4e9e2] rounded-xl px-4 py-2 shadow-sm text-center min-w-[80px]">
+            <div class="text-xl font-bold text-[#00754A]" id="kpi-complete">—</div>
+            <div class="text-[9px] text-[#1E3932] opacity-60 uppercase tracking-widest mt-1">Completed</div>
+        </div>
+        <div class="bg-white/95 backdrop-blur-md border border-[#d4e9e2] rounded-xl px-4 py-2 shadow-sm text-center min-w-[80px]">
+            <div class="text-xl font-bold text-[#1E3932]" id="kpi-planned">—</div>
+            <div class="text-[9px] text-[#1E3932] opacity-60 uppercase tracking-widest mt-1">Planned</div>
+        </div>
+    </div>
+
+    <div class="absolute top-20 left-0 bottom-16 w-64 bg-white/95 backdrop-blur-md border border-[#d4e9e2] rounded-xl overflow-y-auto custom-scrollbar shadow-lg flex flex-col pointer-events-auto">
+
+        <div class="p-4 border-b border-[#f1f0eb]">
+            <div class="text-[10px] font-bold text-[#006241] uppercase tracking-widest mb-3">Facility Types</div>
+            <div class="space-y-1">
+                <label class="flex items-center gap-3 py-1 cursor-pointer hover:bg-[#f1f0eb] rounded px-2 -mx-2 transition-colors">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-[#00754A]" checked onchange="toggleGroup('reactor',this.checked)">
+                    <div class="w-2.5 h-2.5 rounded-sm shrink-0 bg-red-500"></div>
+                    <span class="text-xs font-medium text-[#1E3932]">Reactor Buildings</span>
+                </label>
+                <label class="flex items-center gap-3 py-1 cursor-pointer hover:bg-[#f1f0eb] rounded px-2 -mx-2 transition-colors">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-[#00754A]" checked onchange="toggleGroup('turbine',this.checked)">
+                    <div class="w-2.5 h-2.5 rounded-sm shrink-0 bg-blue-500"></div>
+                    <span class="text-xs font-medium text-[#1E3932]">Turbine Halls</span>
+                </label>
+                <label class="flex items-center gap-3 py-1 cursor-pointer hover:bg-[#f1f0eb] rounded px-2 -mx-2 transition-colors">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-[#00754A]" checked onchange="toggleGroup('cooling',this.checked)">
+                    <div class="w-2.5 h-2.5 rounded-sm shrink-0 bg-cyan-500"></div>
+                    <span class="text-xs font-medium text-[#1E3932]">Cooling Towers</span>
+                </label>
+                <label class="flex items-center gap-3 py-1 cursor-pointer hover:bg-[#f1f0eb] rounded px-2 -mx-2 transition-colors">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-[#00754A]" checked onchange="toggleGroup('aux',this.checked)">
+                    <div class="w-2.5 h-2.5 rounded-sm shrink-0 bg-violet-500"></div>
+                    <span class="text-xs font-medium text-[#1E3932]">Auxiliary Buildings</span>
+                </label>
+                <label class="flex items-center gap-3 py-1 cursor-pointer hover:bg-[#f1f0eb] rounded px-2 -mx-2 transition-colors">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-[#00754A]" checked onchange="toggleGroup('admin',this.checked)">
+                    <div class="w-2.5 h-2.5 rounded-sm shrink-0 bg-[#00754A]"></div>
+                    <span class="text-xs font-medium text-[#1E3932]">Admin & Training</span>
+                </label>
+                <label class="flex items-center gap-3 py-1 cursor-pointer hover:bg-[#f1f0eb] rounded px-2 -mx-2 transition-colors">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-[#00754A]" checked onchange="toggleGroup('infra',this.checked)">
+                    <div class="w-2.5 h-2.5 rounded-sm shrink-0 bg-orange-500"></div>
+                    <span class="text-xs font-medium text-[#1E3932]">Infrastructure</span>
+                </label>
+                <label class="flex items-center gap-3 py-1 cursor-pointer hover:bg-[#f1f0eb] rounded px-2 -mx-2 transition-colors">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-[#00754A]" checked onchange="toggleGroup('crane',this.checked)">
+                    <div class="w-2.5 h-2.5 rounded-sm shrink-0 bg-gray-400"></div>
+                    <span class="text-xs font-medium text-[#1E3932]">Tower Cranes</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="p-4 border-b border-[#f1f0eb]">
+            <div class="text-[10px] font-bold text-[#006241] uppercase tracking-widest mb-3">Construction Status</div>
+            <div class="space-y-1">
+                <label class="flex items-center gap-3 py-1 cursor-pointer hover:bg-[#f1f0eb] rounded px-2 -mx-2 transition-colors">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-[#00754A]" checked onchange="filterStatus('complete',this.checked)">
+                    <div class="w-2.5 h-2.5 rounded-sm shrink-0 bg-[#006241]"></div>
+                    <span class="text-xs font-medium text-[#1E3932]">Completed</span>
+                </label>
+                <label class="flex items-center gap-3 py-1 cursor-pointer hover:bg-[#f1f0eb] rounded px-2 -mx-2 transition-colors">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-[#00754A]" checked onchange="filterStatus('active',this.checked)">
+                    <div class="w-2.5 h-2.5 rounded-sm shrink-0 bg-orange-500"></div>
+                    <span class="text-xs font-medium text-[#1E3932]">Active</span>
+                </label>
+                <label class="flex items-center gap-3 py-1 cursor-pointer hover:bg-[#f1f0eb] rounded px-2 -mx-2 transition-colors">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-[#00754A]" checked onchange="filterStatus('planned',this.checked)">
+                    <div class="w-2.5 h-2.5 rounded-sm shrink-0 bg-gray-300"></div>
+                    <span class="text-xs font-medium text-[#1E3932]">Planned</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="p-4">
+            <div class="text-[10px] font-bold text-[#006241] uppercase tracking-widest mb-3">Scene Parameters</div>
+            <div class="space-y-1">
+                <label class="flex items-center gap-3 py-1 cursor-pointer hover:bg-[#f1f0eb] rounded px-2 -mx-2 transition-colors">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-[#00754A]" checked onchange="toggleEl(waterMesh,this.checked)">
+                    <div class="w-2.5 h-2.5 rounded-sm shrink-0 bg-blue-300"></div>
+                    <span class="text-xs font-medium text-[#1E3932]">Lake Balkhash</span>
+                </label>
+                <label class="flex items-center gap-3 py-1 cursor-pointer hover:bg-[#f1f0eb] rounded px-2 -mx-2 transition-colors">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-[#00754A]" checked onchange="toggleEl(gridHelper,this.checked)">
+                    <div class="w-2.5 h-2.5 rounded-sm shrink-0 bg-[#d4e9e2]"></div>
+                    <span class="text-xs font-medium text-[#1E3932]">Site Grid</span>
+                </label>
+                <label class="flex items-center gap-3 py-1 cursor-pointer hover:bg-[#f1f0eb] rounded px-2 -mx-2 transition-colors">
+                    <input type="checkbox" class="w-3.5 h-3.5 accent-[#00754A]" onchange="toggleWireframe(this.checked)">
+                    <div class="w-2.5 h-2.5 rounded-sm shrink-0 bg-[#1E3932]"></div>
+                    <span class="text-xs font-medium text-[#1E3932]">Wireframe Mode</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div id="info-panel" class="info-panel absolute top-0 right-0 bottom-16 w-[300px] bg-white/95 backdrop-blur-xl border border-[#d4e9e2] rounded-xl shadow-lg pointer-events-auto flex flex-col overflow-y-auto custom-scrollbar">
+        <button class="absolute top-4 right-4 text-[#1E3932] hover:text-[#006241] bg-[#f1f0eb] hover:bg-[#d4e9e2] transition-colors z-10 rounded-full p-1" onclick="closeInfo()">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        <div class="p-6 mt-2" id="info-content">
+            </div>
+    </div>
+
+    <div class="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border border-[#d4e9e2] rounded-xl px-5 py-3 flex flex-wrap items-center justify-between gap-4 pointer-events-auto shadow-sm">
+
+        <div class="flex items-center gap-3 text-[11px] text-[#1E3932] font-medium opacity-80">
+            <span>Click — Inspect</span>
+            <span class="text-[#d4e9e2]">|</span>
+            <span>Drag — Orbit</span>
+            <span class="text-[#d4e9e2]">|</span>
+            <span>Scroll — Zoom</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button class="bg-[#f1f0eb] hover:bg-[#d4e9e2] border border-transparent text-[#1E3932] hover:text-[#006241] px-4 py-1.5 rounded-full text-[11px] font-bold transition-colors" onclick="setCam('top')">Top</button>
+            <button class="bg-[#f1f0eb] hover:bg-[#d4e9e2] border border-transparent text-[#1E3932] hover:text-[#006241] px-4 py-1.5 rounded-full text-[11px] font-bold transition-colors" onclick="setCam('iso')">Iso</button>
+            <button class="bg-[#f1f0eb] hover:bg-[#d4e9e2] border border-transparent text-[#1E3932] hover:text-[#006241] px-4 py-1.5 rounded-full text-[11px] font-bold transition-colors" onclick="setCam('side')">Side</button>
+            <button class="bg-[#f1f0eb] hover:bg-[#d4e9e2] border border-transparent text-[#1E3932] hover:text-[#006241] px-4 py-1.5 rounded-full text-[11px] font-bold transition-colors" onclick="setCam('reset')">Reset</button>
+        </div>
+
+        <div id="coords" class="text-[10px] font-mono font-bold text-[#006241] bg-[#d4e9e2]/50 px-3 py-1.5 rounded-md border border-[#d4e9e2]">
+            Ulken · 44.0021°N 75.8034°E
+        </div>
+    </div>
+
+    <div id="tooltip" class="fixed z-50 bg-white/95 border border-[#d4e9e2] rounded-lg shadow-lg px-3 py-2 pointer-events-none hidden">
+        <div id="tt-name" class="text-[#006241] font-bold text-[11px] mb-1"></div>
+        <div id="tt-status" class="text-[10px] font-medium text-[#1E3932]"></div>
+    </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+// ============================================================================
+// 3D ENGINE - ECO-CORPORATE LIGHT THEME
+// ============================================================================
+
+const renderer = new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.0;
+
+const scene=new THREE.Scene();
+// Cream background and fog
+scene.background=new THREE.Color(0xf1f0eb);
+scene.fog=new THREE.FogExp2(0xf1f0eb,.0045);
+
+const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,.1,600);
+
+// --- LIGHTING ---
+scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+const sun=new THREE.DirectionalLight(0xffffff, 1.2);
+sun.position.set(40,65,30);
+sun.castShadow=true;
+Object.assign(sun.shadow.camera,{left:-80,right:80,top:80,bottom:-80,near:1,far:250});
+sun.shadow.mapSize.set(4096,4096);
+sun.shadow.bias=-0.0004;
+scene.add(sun);
+const fill=new THREE.DirectionalLight(0xd4e9e2, 0.5);
+fill.position.set(-30,20,-25);
+scene.add(fill);
+
+// --- MATERIALS ---
+const MC={
+  conc:  new THREE.MeshLambertMaterial({color:0xb0bec5}),
+  concDk:new THREE.MeshLambertMaterial({color:0x90a4ae}),
+  steel: new THREE.MeshLambertMaterial({color:0x78909c}),
+  steelLt:new THREE.MeshLambertMaterial({color:0x90a4ae}),
+  roof:  new THREE.MeshLambertMaterial({color:0x607d8b}),
+  roofLt:new THREE.MeshLambertMaterial({color:0x78909c}),
+  glass: new THREE.MeshLambertMaterial({color:0x00754A,transparent:true,opacity:.35}),
+  crane: new THREE.MeshLambertMaterial({color:0xf59e0b}),
+  road:  new THREE.MeshLambertMaterial({color:0xcfd8dc}),
+  dirt:  new THREE.MeshLambertMaterial({color:0xffffff}),
+  water: new THREE.MeshLambertMaterial({color:0x93c5fd,transparent:true,opacity:.8}),
+  planMat:new THREE.MeshLambertMaterial({color:0xe2e8f0,transparent:true,opacity:.6}),
+  actMat: new THREE.MeshLambertMaterial({color:0xfde68a,transparent:true,opacity:.0}),
+};
+
+function B(w,h,d,mat,x=0,y=0,z=0,rx=0,ry=0){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat.clone?mat.clone():mat);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,0);
+  m.castShadow=true; m.receiveShadow=true; return m;
+}
+function C(rB,rT,h,segs,mat,x=0,y=0,z=0){
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(rT,rB,h,segs),mat.clone?mat.clone():mat);
+  m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; return m;
+}
+function S(r,segs,mat,x=0,y=0,z=0){
+  const m=new THREE.Mesh(new THREE.SphereGeometry(r,segs,Math.ceil(segs*.6)),mat.clone?mat.clone():mat);
+  m.position.set(x,y,z); m.castShadow=true; return m;
+}
+function gableRoof(w,rh,d,mat,px=0,py=0,pz=0){
+  const hw=w/2, hd=d/2;
+  const verts=new Float32Array([-hw,0,-hd,  hw,0,-hd,  0,rh,-hd, -hw,0, hd,  hw,0, hd,  0,rh, hd]);
+  const idx=[0,1,2, 3,5,4, 0,3,4, 0,4,1, 1,4,5, 1,5,2, 2,5,3, 2,3,0];
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(verts,3));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  const m=new THREE.Mesh(geo,mat.clone?mat.clone():mat);
+  m.position.set(px,py,pz); m.castShadow=true; return m;
+}
+
+// --- BUILDING GENERATORS ---
+function buildReactor(status){
+  const g=new THREE.Group();
+  const isPlanned = status==='planned';
+  const cm = isPlanned ? MC.planMat : MC.conc;
+  const dk = isPlanned ? MC.planMat : MC.concDk;
+  const st = isPlanned ? MC.planMat : MC.steel;
+  g.add(C(6.8,6.8,24,36,cm,0,12,0));
+  const dome=S(6.8,32,dk,0,24,0); dome.scale.y=.52; g.add(dome);
+  g.add(C(5,5,20,28,dk,0,10,0));
+  g.add(B(2.5,3.5,2.5,cm,7.5,2,0));
+  g.add(B(4,3,2.5,cm,-7,2,3));
+  g.add(C(7,7,.6,36,st,0,24,0));
+  g.add(C(1.4,1.0,3,14,st,0,25.5,0));
+  [[-4.5,4.5],[-4.5,-4.5],[4.5,4.5],[4.5,-4.5]].forEach(([x,z])=>{ g.add(C(.4,.35,7,8,st,x,11,z)); });
+  g.add(B(6,9,5,cm,10,4.5,0));
+  g.add(gableRoof(6,2,5,MC.roof,10,9,0));
+  g.add(B(4,7,4,cm,8,3.5,6));
+  if(status==='active'){
+    const scMat=new THREE.MeshLambertMaterial({color:0xffeedd,transparent:true,opacity:.7});
+    for(let y=0;y<18;y+=6) g.add(C(8,8,.12,36,scMat,0,y+2,0));
+    g.add(C(6.9,6.9,8,36,new THREE.MeshLambertMaterial({color:0x00754A,transparent:true,opacity:.1}),0,4,0));
+  }
+  return g;
+}
+
+function buildCoolingTower(status){
+  const g=new THREE.Group();
+  const cm=status==='planned'?MC.planMat:MC.conc;
+  const dk=status==='planned'?MC.planMat:MC.concDk;
+  g.add(C(6.2,5.8,6,32,cm, 0,3,0)); g.add(C(5.8,4.4,7,32,cm, 0,9.5,0));
+  g.add(C(4.4,3.5,6,32,cm, 0,16,0)); g.add(C(3.5,3.8,5,32,cm, 0,21.5,0));
+  g.add(C(3.8,4.4,4,32,cm, 0,26,0)); g.add(C(4.4,4.8,2,32,cm, 0,29,0));
+  g.add(C(4.9,4.9,.4,32,dk,0,30.2,0)); g.add(C(1.2,1.2,10,12,MC.steelLt,0,5,0));
+  for(let a=0;a<8;a++){ const angle=a*Math.PI/4; g.add(C(.35,.35,4,8,dk,Math.sin(angle)*5.5,2,Math.cos(angle)*5.5)); }
+  if(status==='planned'||status==='active'){
+    const sMat=new THREE.MeshLambertMaterial({color:0xf59e0b,transparent:true,opacity:.55});
+    (status==='planned'?[5,13,21,28]:[28]).forEach(y=>g.add(C(7,7,.15,32,sMat,0,y,0)));
+  }
+  if(status!=='planned') g.add(C(3.5,5.5,8,20,new THREE.MeshLambertMaterial({color:0xffffff,transparent:true,opacity:.4}),0,34,0));
+  return g;
+}
+
+function buildTurbineHall(status){
+  const g=new THREE.Group();
+  const st=status==='planned'?MC.planMat:MC.steel;
+  const cm=status==='planned'?MC.planMat:MC.conc;
+  g.add(B(22,10,11,st, 0,5,0));
+  for(let i=-9.5;i<=9.5;i+=1.9) g.add(C(5.5,5.5,1.1,24,MC.roofLt, 0,10,i));
+  g.add(B(1.2,10,11,cm, -11,5,0)); g.add(B(1.2,10,11,cm,  11,5,0));
+  for(let i=-9;i<=9;i+=2.8){ g.add(B(1.3,2.2,1.5,MC.glass, 11,4,i)); g.add(B(1.3,2.2,1.5,MC.glass,-11,4,i)); }
+  g.add(B(24,.5,.8,MC.steel,0,9.8,-4)); g.add(B(24,.5,.8,MC.steel,0,9.8, 4));
+  g.add(C(.65,.5,14,12,cm,-9,12,3)); g.add(C(.65,.5,14,12,cm, 9,12,3));
+  g.add(B(6,5,5,MC.steel,14,2.5,0)); g.add(gableRoof(6,1.5,5,MC.roof,14,5,0));
+  g.add(C(1.2,1.2,6,12,MC.steel,8,13,0)); g.add(C(2,2,.8,16,MC.steel,8,16.4,0));
+  return g;
+}
+
+function buildAdminBuilding(floors){
+  const g=new THREE.Group(); const fh=3.2, h=floors*fh;
+  g.add(B(10,h,8,MC.conc,0,h/2,0));
+  for(let f=1;f<floors;f++) g.add(B(10.3,.25,8.3,MC.concDk,0,f*fh,0));
+  for(let f=0;f<floors;f++) for(let wx=-3.5;wx<=3.5;wx+=2.2) g.add(B(.18,fh*.65,1.8,MC.glass,wx,f*fh-h/2+fh*.55,4.1));
+  g.add(B(10.5,.4,8.5,MC.roof,0,h,0));
+  g.add(B(10.5,.6,.4,MC.concDk,0,h+.3, 4.25)); g.add(B(10.5,.6,.4,MC.concDk,0,h+.3,-4.25));
+  g.add(B(.4,.6,8.5,MC.concDk, 5.25,h+.3,0)); g.add(B(.4,.6,8.5,MC.concDk,-5.25,h+.3,0));
+  g.add(B(4,.2,2.5,MC.steelLt,0,-h/2+.1,5.5)); g.add(B(.15,h*.35,.15,MC.steel,-1.8,-h/2+h*.175,5.5)); g.add(B(.15,h*.35,.15,MC.steel, 1.8,-h/2+h*.175,5.5));
+  return g;
+}
+
+function buildWarehouse(){
+  const g=new THREE.Group();
+  g.add(B(18,5,10,MC.steel,0,2.5,0)); g.add(gableRoof(18,3,10,MC.roof,0,5,0));
+  g.add(B(.3,5,10,MC.conc,-9,2.5,0)); g.add(B(.3,5,10,MC.conc, 9,2.5,0));
+  [-5,0,5].forEach(z=>g.add(B(3.2,3,.18,MC.steel,9,1.5,z)));
+  g.add(B(10,.6,3.5,MC.road,0,.3,-6.5));
+  return g;
+}
+
+function buildSubstation(){
+  const g=new THREE.Group();
+  g.add(B(14,.3,8,MC.road,0,.15,0));
+  [-4,4].forEach(x=>{
+    g.add(B(2.5,3.5,2,MC.steel,x,1.75,0));
+    for(let f=-.8;f<=.8;f+=.35) g.add(B(2.6,.1,2.1,MC.concDk,x,f+1.75,0));
+    [-0.6,0,.6].forEach(bx=>g.add(C(.13,.1,1.4,6,MC.steelLt,x+bx,3.7,0)));
+  });
+  g.add(C(.15,.15,7,8,MC.steel,-6,3.5,0)); g.add(C(.15,.15,7,8,MC.steel, 6,3.5,0));
+  g.add(B(14,.15,.15,MC.steel,0,7,0));
+  return g;
+}
+
+function buildConcretePlant(){
+  const g=new THREE.Group();
+  g.add(C(2.2,2.2,11,16,MC.conc,0,5.5,0));
+  const sTop=S(2.3,16,MC.concDk,0,11.5,0); sTop.scale.y=.45; g.add(sTop);
+  g.add(B(7,6,5,MC.steel,7,3,0)); g.add(gableRoof(7,2,5,MC.roof,7,6,0));
+  const belt=B(9,.3,1.2,MC.steel,2.5,3.5,-2); belt.rotation.z=Math.PI/7; g.add(belt);
+  return g;
+}
+
+function buildPumpHouse(){
+  const g=new THREE.Group();
+  g.add(B(9,5,6,MC.conc,0,2.5,0)); g.add(gableRoof(9,2.5,6,MC.roof,0,5,0));
+  [-2.5,0,2.5].forEach(x=>g.add(C(.42,.42,3.5,8,MC.steel,x,.75,-4)));
+  return g;
+}
+
+function buildTowerCrane(h){
+  const g=new THREE.Group();
+  for(let y=0;y<h;y+=5){
+    g.add(B(.3,.3,.3,MC.crane, 0,y,0)); g.add(B(.3,.3,.3,MC.crane,-1.5,y,-1.5));
+    g.add(B(.3,.3,.3,MC.crane, 1.5,y,-1.5)); g.add(B(.3,.3,.3,MC.crane, 1.5,y, 1.5));
+    const diag=B(.15,.15,3,MC.crane,.75,y+2.5,0); diag.rotation.z=Math.PI/5; g.add(diag);
+  }
+  g.add(C(2,2,.4,16,MC.crane,0,h,0)); g.add(B(26,.4,.4,MC.crane,9,h+.8,0)); g.add(B(8,.4,.4,MC.crane,-6,h+.8,0));
+  g.add(B(3,1.5,1.5,MC.concDk,-9.5,h+.2,0));
+  g.add(B(.08,4,.08,MC.crane,12,h+3,0)); g.add(B(.08,4,.08,MC.crane,-8,h+3,0));
+  g.add(B(1.5,1.5,1.6,MC.glass,0,h+1.5,0)); g.add(B(.06,h*.5,.06,MC.steelLt,16,h*.65,0));
+  return g;
+}
+
+function buildChimney(){
+  const g=new THREE.Group();
+  g.add(C(1.3,.85,28,16,MC.conc,0,14,0));
+  [-5,-10,-15].forEach(y=> g.add(C(.92,.92,.75,16,new THREE.MeshLambertMaterial({color:0xef4444}),0,y+21,0)) );
+  g.add(C(.85,.6,4,16,MC.concDk,0,28.5,0));
+  return g;
+}
+
+function buildRailTerminal(){
+  const g=new THREE.Group();
+  g.add(B(20,4,12,MC.steel,0,2,0)); g.add(gableRoof(20,2.5,12,MC.roof,0,4,0));
+  [-3,0,3].forEach(z=>{ g.add(B(28,.18,.25,MC.concDk,0,.09,z)); });
+  g.add(B(.3,10,.3,MC.steel,-11,5,0)); g.add(B(.3,10,.3,MC.steel, 11,5,0)); g.add(B(24,.3,.3,MC.steel,0,10,0));
+  return g;
+}
+
+// --- STATIC GROUND & GRID ---
+const gnd=new THREE.Mesh(new THREE.PlaneGeometry(220,220),MC.dirt); gnd.rotation.x=-Math.PI/2; gnd.receiveShadow=true; scene.add(gnd);
+const gridHelper=new THREE.GridHelper(160,40,0x00754A,0xd4e9e2); gridHelper.position.y=.015; scene.add(gridHelper);
+
+const waterMesh=new THREE.Mesh(new THREE.PlaneGeometry(90,28),MC.water); waterMesh.rotation.x=-Math.PI/2; waterMesh.position.set(-22,.02,-50); scene.add(waterMesh);
+const shore=new THREE.Mesh(new THREE.PlaneGeometry(94,5),new THREE.MeshLambertMaterial({color:0xcfd8dc})); shore.rotation.x=-Math.PI/2; shore.position.set(-22,.01,-37); scene.add(shore);
+
+const fMat=new THREE.MeshLambertMaterial({color:0x94a3b8});
+[[-55,0,0,80,1.5,1],[55,0,0,80,1.5,1],[0,0,-40,1,1.5,80],[0,0,40,1,1.5,80]].forEach(([x,y,z,w,h,d])=>{
+  const f=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),fMat); f.position.set(x,.75,z); scene.add(f);
+});
+
+[[3,.02,0,120,.06,3],[0,.02,0,3,.06,80],[12,.02,-5,3,.06,40],[0,.02,22,60,.06,3],[-20,.02,12,3,.06,50]].forEach(([x,y,z,w,h,d])=>{
+  const r=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),MC.road); r.position.set(x,y,z); r.receiveShadow=true; scene.add(r);
+});
+
+// --- DATA STRUCTURES (TRANSLATED TO ENGLISH) ---
+const STRUCTURES=[
+  // ── Stage 6 · Commissioning (Day 2160-3649) ── ACTIVE at Day 2912
+  {id:'R1',name:'Reactor Unit 1 (VVER-1200)',type:'reactor',status:'active',x:12,z:-9,ry:0,gy:0,workers:420,progress:72,eta:'Q3 2038',desc:'VVER-1200 in power-ascension commissioning. Cold & hot functional tests passed. Fuel loaded. Currently at 50% rated power.',supplier:'Rosatom / AtomStroyExport'},
+  {id:'T1',name:'Turbine Hall 1',type:'turbine',status:'active',x:-8,z:-9,ry:0,gy:5,workers:85,progress:95,eta:'Q1 2037',desc:'Turbine-generator coupling complete. Vibration & balance testing in progress. Grid sync imminent.',supplier:'Power Machines / KazEnergy'},
+  {id:'A2',name:'Spent Fuel Storage',type:'aux',status:'active',x:28,z:2,ry:0,gy:3,workers:40,progress:88,eta:'Q4 2036',desc:'Spent fuel pool filled and operational. Loading validation ongoing with IAEA inspectors on site.',supplier:'TVEL / KazAtomProm'},
+  {id:'I4',name:'500 kV Switchyard',type:'infra',status:'active',x:50,z:6,ry:0,gy:.15,workers:55,progress:82,eta:'Q4 2036',desc:'Final grid-connection work. Protection relay settings being calibrated. Synchronisation with KEGOC scheduled.',supplier:'ABB / KEGOC'},
+
+  // ── Stages 1–5 · All construction done ── COMPLETE
+  {id:'CT1',name:'Cooling Tower 1',type:'cooling',status:'complete',x:-34,z:-7,ry:0,gy:0,workers:0,progress:100,eta:'Completed 2034',desc:'Evaporative cooling tower h=120 m. Fully operational since Stage 5.',supplier:'GEA Group'},
+  {id:'CT2',name:'Cooling Tower 2',type:'cooling',status:'complete',x:-34,z:7,ry:0,gy:0,workers:0,progress:100,eta:'Completed 2034',desc:'Evaporative cooling tower h=120 m. Both towers supporting turbine condenser loops.',supplier:'GEA Group'},
+  {id:'A1',name:'Emergency Diesel Generators',type:'aux',status:'complete',x:28,z:-12,ry:0,gy:2.5,workers:0,progress:100,eta:'Completed 2031',desc:'4×EDG, 72h autonomy. Periodic load-test confirmed operational. IAEA GS-R-3 compliant.',supplier:'Caterpillar'},
+  {id:'A3',name:'Pump Station',type:'aux',status:'complete',x:12,z:-30,ry:0,gy:2.5,workers:0,progress:100,eta:'Completed 2030',desc:'Water intake from Lake Balkhash. Fully operational since Stage 2.',supplier:'KazHydro'},
+  {id:'A4',name:'Water Treatment Plant',type:'aux',status:'complete',x:26,z:14,ry:0,gy:1.5,workers:0,progress:100,eta:'Completed 2033',desc:'Demineralized water production for primary/secondary loops. Capacity 400 m³/h.',supplier:'Veolia'},
+  {id:'AD1',name:'Admin & Visitor Center',type:'admin',status:'complete',x:42,z:-6,ry:0,gy:6,workers:0,progress:100,eta:'Completed 2030',desc:'4-story management center and security checkpoint. NPP Operator HQ.',supplier:'KazBuilding'},
+  {id:'AD2',name:'Training Center',type:'admin',status:'complete',x:42,z:-18,ry:0,gy:3,workers:0,progress:100,eta:'Completed 2030',desc:'Full-scale VVER-1200 simulator. Operator certification completed — 120 licensed operators.',supplier:'Rosatom'},
+  {id:'AD3',name:'Builders Dormitory',type:'admin',status:'complete',x:42,z:8,ry:0,gy:4.5,workers:0,progress:100,eta:'Completed 2032',desc:'Housing for 2000 construction personnel. Now converted to O&M staff accommodation.',supplier:'KazBuilding'},
+  {id:'I1',name:'Concrete Batching Plant',type:'infra',status:'complete',x:-28,z:-28,ry:0,gy:0,workers:0,progress:100,eta:'Completed 2029',desc:'200 m³/h capacity. Decommissioned after structural works stage.',supplier:'Liebherr'},
+  {id:'I2',name:'Main Warehouse',type:'infra',status:'complete',x:-12,z:-28,ry:0,gy:2.5,workers:0,progress:100,eta:'Completed 2031',desc:'Material storage and logistics distribution hub. Repurposed for spare-parts inventory.',supplier:'KazBuilding'},
+  {id:'I3',name:'Railway Terminal',type:'infra',status:'complete',x:8,z:30,ry:0,gy:2,workers:0,progress:100,eta:'Completed 2031',desc:'Rail branch to Almaty–Balkhash line. Delivered 18,400 t of heavy equipment over project life.',supplier:'KTZ'},
+  {id:'I5',name:'110 kV Substation',type:'infra',status:'complete',x:50,z:20,ry:0,gy:.15,workers:0,progress:100,eta:'Completed 2029',desc:'Temporary construction power supply. Energised Day 1. Still operational for site auxiliary loads.',supplier:'KEGOC'},
+  {id:'I6',name:'Boiler Exhaust Stack',type:'infra',status:'complete',x:-20,z:-20,ry:0,gy:0,workers:0,progress:100,eta:'Completed 2031',desc:'Exhaust chimney for auxiliary heating boilers.',supplier:'KazStroy'},
+
+  // ── Stage 6+ (Unit 2 sequence) ── PLANNED
+  {id:'R2',name:'Reactor Unit 2 (VVER-1200)',type:'reactor',status:'planned',x:12,z:9,ry:0,gy:0,workers:50,progress:4,eta:'Q4 2041',desc:'Second VVER-1200 unit. Earthworks commenced Dec 2036. Foundation design finalised.',supplier:'Rosatom / AtomStroyExport'},
+  {id:'T2',name:'Turbine Hall 2',type:'turbine',status:'planned',x:-8,z:9,ry:0,gy:5,workers:0,progress:0,eta:'Q1 2042',desc:'Serves Reactor Unit 2. Procurement underway. Site cleared.',supplier:'TBD'},
+];
+
+const BUILDERS={
+  reactor:(s)=>buildReactor(s.status), turbine:(s)=>buildTurbineHall(s.status), cooling:(s)=>buildCoolingTower(s.status),
+  aux:(s)=>s.id==='A3'||s.id==='A1'?buildPumpHouse():buildAdminBuilding(s.id==='A2'?2:1), admin:(s)=>buildAdminBuilding(s.id==='AD1'?4:s.id==='AD3'?3:2),
+  infra:(s)=>{ if(s.id==='I1') return buildConcretePlant(); if(s.id==='I2'||s.id==='I3') return s.id==='I3'?buildRailTerminal():buildWarehouse(); if(s.id==='I4'||s.id==='I5') return buildSubstation(); if(s.id==='I6') return buildChimney(); return buildWarehouse(); },
+};
+
+// --- HEADER KPI COUNTS — derived from STRUCTURES (single source of truth) ---
+(function syncHeaderKpis(){
+  const counts = STRUCTURES.reduce((a,s)=>{ a[s.status]=(a[s.status]||0)+1; return a; }, {});
+  document.getElementById('kpi-objects').textContent  = STRUCTURES.length;
+  document.getElementById('kpi-active').textContent   = counts.active   || 0;
+  document.getElementById('kpi-complete').textContent = counts.complete || 0;
+  document.getElementById('kpi-planned').textContent  = counts.planned  || 0;
+})();
+
+const typeGroups={}; ['reactor','turbine','cooling','aux','admin','infra','crane'].forEach(t=>{ typeGroups[t]=new THREE.Group(); scene.add(typeGroups[t]); });
+const allMeshes=[]; const structMap={};
+
+STRUCTURES.forEach(s=>{
+  const grp=new THREE.Group(); grp.position.set(s.x,s.gy,s.z); if(s.ry) grp.rotation.y=s.ry;
+  const model=(BUILDERS[s.type]||BUILDERS.infra)(s); grp.add(model);
+  grp.traverse(child=>{ if(child.isMesh){ child.userData=s; child.castShadow=true; child.receiveShadow=true; allMeshes.push(child); } });
+  structMap[s.id]=grp; (typeGroups[s.type]||typeGroups.infra).add(grp);
+});
+
+[[12,-9,4,32],[8,9,0,28],[-34,-7,0,24]].forEach(([x,y,z,h])=>{ const cr=buildTowerCrane(h); cr.position.set(x,0,z); typeGroups.crane.add(cr); });
+
+let theta=.7, phi=.6, radius=90; const camTarget=new THREE.Vector3(2,3,0);
+function updateCam(){ camera.position.set(camTarget.x+radius*Math.sin(phi)*Math.sin(theta), camTarget.y+radius*Math.cos(phi), camTarget.z+radius*Math.sin(phi)*Math.cos(theta)); camera.lookAt(camTarget); }
+updateCam();
+let isDragging=false,lastX=0,lastY=0,mdX=0,mdY=0;
+const cv=document.getElementById('c');
+cv.addEventListener('mousedown',e=>{isDragging=true;lastX=mdX=e.clientX;lastY=mdY=e.clientY;});
+window.addEventListener('mouseup',()=>isDragging=false);
+window.addEventListener('mousemove',e=>{ if(isDragging){ theta-=(e.clientX-lastX)*.004; phi=Math.max(.05,Math.min(1.48,phi+(e.clientY-lastY)*.004)); lastX=e.clientX;lastY=e.clientY;updateCam(); } });
+cv.addEventListener('wheel',e=>{radius=Math.max(8,Math.min(150,radius+e.deltaY*.07));updateCam();e.preventDefault();},{passive:false});
+function setCam(v){ if(v==='top'){phi=.05;theta=0;radius=100;}else if(v==='iso'){phi=.6;theta=.7;radius=78;}else if(v==='side'){phi=Math.PI/3;theta=Math.PI/2;radius=75;}else{phi=.6;theta=.7;radius=78;} updateCam(); }
+
+const ray=new THREE.Raycaster(); const mouse2=new THREE.Vector2(); let selId=null,hovId=null;
+function getHits(e){ const r=cv.getBoundingClientRect(); mouse2.x=((e.clientX-r.left)/r.width)*2-1; mouse2.y=-((e.clientY-r.top)/r.height)*2+1; ray.setFromCamera(mouse2,camera); return ray.intersectObjects(allMeshes); }
+
+cv.addEventListener('mousemove',e=>{
+  if(isDragging) return; const hits=getHits(e); const s=hits[0]?.object?.userData;
+  if(s?.id){
+    if(hovId!==s.id){ if(hovId&&hovId!==selId) setEmissive(hovId,0); hovId=s.id; if(s.id!==selId) setEmissive(s.id,.08); }
+
+    // Status text mapping
+    const sc=s.status==='complete'?'#006241':s.status==='active'?'#f59e0b':'#64748b';
+    const statusEN={complete:'COMPLETED',active:'ACTIVE',planned:'PLANNED'}[s.status]||s.status.toUpperCase();
+
+    document.getElementById('tt-name').textContent=s.name;
+    document.getElementById('tt-status').innerHTML=`<span style="color:${sc}">${statusEN}</span> · ${s.progress}% · ${s.workers} prs.`;
+    const tt=document.getElementById('tooltip'); tt.style.display='block';tt.style.left=(e.clientX+14)+'px';tt.style.top=(e.clientY-8)+'px'; cv.style.cursor='pointer';
+  } else {
+    if(hovId&&hovId!==selId) setEmissive(hovId,0); hovId=null;
+    document.getElementById('tooltip').style.display='none'; cv.style.cursor='default';
+  }
+  document.getElementById('coords').textContent=`Ulken · ${(44.0+mouse2.y*.04).toFixed(4)}°N ${(75.8+mouse2.x*.04).toFixed(4)}°E`;
+});
+
+cv.addEventListener('click',e=>{ if(Math.abs(e.clientX-mdX)>5||Math.abs(e.clientY-mdY)>5) return; const hits=getHits(e); const s=hits[0]?.object?.userData; if(s?.id) openInfo(s); else closeInfo(); });
+
+function setEmissive(id,val){ allMeshes.filter(m=>m.userData.id===id&&m.material.emissive).forEach(m=>m.material.emissive.setScalar(val)); }
+
+function openInfo(s){
+  if(selId) setEmissive(selId,0); selId=s.id; setEmissive(s.id,.14);
+
+  const sc=s.status==='complete'?'#006241':s.status==='active'?'#f59e0b':'#64748b';
+  const tc={reactor:'#ef4444',turbine:'#3b82f6',cooling:'#06b6d4',aux:'#8b5cf6',admin:'#00754A',infra:'#f59e0b'}[s.type]||'#1E3932';
+  const typeName={reactor:'Reactor',turbine:'Turbine Hall',cooling:'Cooling Tower',aux:'Auxiliary',admin:'Admin/Training',infra:'Infrastructure'}[s.type]||s.type;
+  const statusName={complete:'COMPLETED',active:'UNDER CONSTRUCTION',planned:'PLANNED'}[s.status]||s.status;
+
+  document.getElementById('info-content').innerHTML=`
+    <div class="info-tag" style="background:${sc}20;color:${sc}">${statusName}</div>
+    <div class="info-title">${s.name}</div>
+    <div class="info-sub">${s.desc}</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${s.progress}%;background:${sc}"></div></div>
+    <div style="font-size:9px;color:${sc};margin-bottom:10px;font-weight:bold;">${s.progress}% completed</div>
+    <div class="info-row"><span class="info-key">ID</span><span class="info-val">${s.id}</span></div>
+    <div class="info-row"><span class="info-key">Type</span><span class="info-val" style="color:${tc}">${typeName}</span></div>
+    <div class="info-row"><span class="info-key">Workers</span><span class="info-val" style="color:#f59e0b">${s.workers}</span></div>
+    <div class="info-row"><span class="info-key">Completion</span><span class="info-val">${s.eta}</span></div>
+    <div class="info-row"><span class="info-key">Contractor</span><span class="info-val">${s.supplier}</span></div>`;
+  document.getElementById('info-panel').classList.add('open');
+}
+function closeInfo(){ if(selId){setEmissive(selId,0);selId=null;} document.getElementById('info-panel').classList.remove('open'); }
+
+function toggleGroup(t,on){if(typeGroups[t])typeGroups[t].visible=on;}
+function filterStatus(st,on){ STRUCTURES.filter(s=>s.status===st).forEach(s=>{if(structMap[s.id])structMap[s.id].visible=on;}); }
+function toggleEl(obj,on){obj.visible=on;}
+function toggleWireframe(on){allMeshes.forEach(m=>{if(m.material)m.material.wireframe=on;});}
+
+let tick=0;
+function animate(){
+  requestAnimationFrame(animate); tick+=.005;
+  STRUCTURES.filter(s=>s.status==='active').forEach(s=>{
+    if(s.id===selId||s.id===hovId) return; setEmissive(s.id,.025+Math.sin(tick+s.x*.3)*.018);
+  });
+  waterMesh.material.opacity=.75+Math.sin(tick*.6)*.05;
+  renderer.render(scene,camera);
+}
+animate();
+window.addEventListener('resize',()=>{ renderer.setSize(innerWidth,innerHeight); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); });
+</script>
+{% endblock %}

@@ -1,0 +1,1384 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+<script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+<script src="https://unpkg.com/lucide@0.453.0/dist/umd/lucide.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js"></script>
+
+<style type="text/tailwindcss">
+  @layer components {
+    /* Перенос темной темы в светлую Eco-Corporate */
+    .card { @apply relative rounded-2xl border border-[#d4e9e2] bg-white shadow-sm overflow-hidden; }
+    .card-hover { @apply transition-shadow hover:shadow-md hover:border-[#00754A]/40; }
+
+    .pill { @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold border; }
+    .pill-ok     { @apply bg-[#d4e9e2]/50 text-[#00754A] border-[#d4e9e2]; }
+    .pill-warn   { @apply bg-orange-50 text-orange-600 border-orange-200; }
+    .pill-danger { @apply bg-red-50 text-red-600 border-red-200; }
+    .pill-info   { @apply bg-[#f1f0eb] text-[#006241] border-[#d4e9e2]; }
+    .pill-muted  { @apply bg-gray-50 text-gray-500 border-gray-200; }
+
+    .btn { @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed; }
+    .btn-primary { @apply btn bg-[#00754A] text-white hover:bg-[#006241] shadow-sm; }
+    .btn-ghost   { @apply btn border border-[#d4e9e2] text-[#1E3932] hover:bg-[#f1f0eb] bg-white; }
+
+    .input { @apply w-full rounded-lg border border-[#d4e9e2] bg-[#f1f0eb]/50 px-3 py-2 text-sm text-[#1E3932] placeholder:text-gray-400 focus:border-[#00754A] focus:outline-none focus:ring-2 focus:ring-[#00754A]/20; }
+
+    .table-base { @apply w-full text-left text-sm; }
+    .table-base thead th { @apply sticky top-0 z-10 border-b border-[#d4e9e2] bg-[#f1f0eb] px-3 py-2 text-xs font-bold uppercase tracking-wider text-[#006241]; }
+    .table-base tbody td { @apply border-b border-[#f1f0eb] px-3 py-2.5 text-[#1E3932] font-medium; }
+    .table-base tbody tr:hover td { @apply bg-[#f1f0eb]/30; }
+  }
+</style>
+
+<style>
+  /* Стили графиков под светлый дизайн */
+  .recharts-default-tooltip {
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid #d4e9e2 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05) !important;
+  }
+  .recharts-tooltip-label, .recharts-tooltip-item { color: #1E3932 !important; font-family: 'Inter', sans-serif; font-weight: bold; }
+  .recharts-cartesian-grid line { stroke: #d4e9e2; }
+  .recharts-cartesian-axis-tick text { fill: #1E3932; font-family: 'Inter', sans-serif; font-weight: 600; opacity: 0.6; }
+  .recharts-legend-item-text { color: #1E3932 !important; font-family: 'Inter', sans-serif; font-weight: 700; }
+</style>
+
+<div id="hr-root" class="h-full flex flex-col"></div>
+
+{% verbatim %}
+<script type="text/babel">
+  "use strict";
+  const { useState, useEffect, useMemo, createContext, useContext } = React;
+  const { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend, AreaChart, Area } = Recharts;
+
+  function clsx(...args) {
+    const out = [];
+    for (const a of args) {
+      if (!a) continue;
+      const tt = typeof a;
+      if (tt === "string" || tt === "number") out.push(a);
+      else if (Array.isArray(a)) { const inner = clsx(...a); if (inner) out.push(inner); }
+      else if (tt === "object") { for (const k in a) if (a[k]) out.push(k); }
+    }
+    return out.join(" ");
+  }
+
+  function makeIcon(name) {
+    return function LucideIcon({ className = "", size = 20, strokeWidth = 2, ...rest }) {
+      const data = (window.lucide && lucide.icons)[name];
+      if (!data) return null;
+      let attrs = data[1] || {};
+      let childNodes = data[2] || (data.iconNode ? data.iconNode : []);
+      const children = childNodes.map(([tag, cattrs], i) => React.createElement(tag, { key: i, ...cattrs }));
+      return React.createElement("svg", {
+        xmlns: "http://www.w3.org/2000/svg", width: size, height: size,
+        viewBox: attrs.viewBox || "0 0 24 24", fill: "none", stroke: "currentColor",
+        strokeWidth, strokeLinecap: "round", strokeLinejoin: "round", className, ...rest,
+      }, children);
+    };
+  }
+
+  const Users = makeIcon("Users"); const UserCheck = makeIcon("UserCheck"); const UserPlus = makeIcon("UserPlus");
+  const AlertTriangle = makeIcon("AlertTriangle"); const ShieldAlert = makeIcon("ShieldAlert"); const ShieldCheck = makeIcon("ShieldCheck");
+  const ShieldX = makeIcon("ShieldX"); const Wrench = makeIcon("Wrench"); const MapPin = makeIcon("MapPin");
+  const ArrowUpRight = makeIcon("ArrowUpRight"); const ArrowRight = makeIcon("ArrowRight"); const Flag = makeIcon("Flag");
+  const Cpu = makeIcon("Cpu"); const GraduationCap = makeIcon("GraduationCap"); const CalendarRange = makeIcon("CalendarRange");
+  const ClipboardList = makeIcon("ClipboardList"); const Briefcase = makeIcon("Briefcase"); const BarChart3 = makeIcon("BarChart3");
+  const Activity = makeIcon("Activity"); const Award = makeIcon("Award"); const Sparkles = makeIcon("Sparkles");
+  const Clock = makeIcon("Clock"); const CheckCircle2 = makeIcon("CheckCircle2"); const RotateCcw = makeIcon("RotateCcw");
+  const RefreshCw = makeIcon("RefreshCw"); const Sun = makeIcon("Sun"); const Moon = makeIcon("Moon"); const BedDouble = makeIcon("BedDouble");
+
+  /* ============================================================
+     DATA — zones / tasks / workers / recruitment
+     ============================================================ */
+  const ZONES = [
+    { id: "RB", name: "Reactor Building",   discipline: "Civil",      progress: 62, status: "on-track" },
+    { id: "TH", name: "Turbine Hall",       discipline: "Mechanical", progress: 48, status: "delayed" },
+    { id: "CT", name: "Cooling Tower",      discipline: "Civil",      progress: 81, status: "on-track" },
+    { id: "AB", name: "Auxiliary Building", discipline: "Mechanical", progress: 70, status: "on-track" },
+    { id: "SY", name: "Switchyard",         discipline: "Electrical", progress: 55, status: "at-risk" },
+    { id: "CR", name: "Control Room",       discipline: "I&C",        progress: 38, status: "delayed" },
+    { id: "SF", name: "Spent Fuel Pool",    discipline: "Civil",      progress: 90, status: "complete" },
+    { id: "EM", name: "Emergency Diesel",   discipline: "Electrical", progress: 65, status: "on-track" },
+  ];
+
+  const TASKS = [
+    // ── Micro-tasks (specific work orders) ──────────────────────────────────
+    { id: "T-101", title: "Primary Loop Pipe Welding",      skill: "Welder",          needed: 8,  zoneId: "TH", priority: "critical", deadlineDays: 4 },
+    { id: "T-102", title: "Reactor Vessel Rebar Tying",     skill: "Rebar Fitter",    needed: 12, zoneId: "RB", priority: "high",     deadlineDays: 7 },
+    { id: "T-103", title: "Cable Tray Installation",        skill: "Electrician",     needed: 6,  zoneId: "SY", priority: "high",     deadlineDays: 5 },
+    { id: "T-104", title: "Containment Concrete Pour",      skill: "Concrete Worker", needed: 14, zoneId: "RB", priority: "critical", deadlineDays: 3 },
+    { id: "T-105", title: "Crane Lift — Steam Generator",   skill: "Crane Operator",  needed: 3,  zoneId: "TH", priority: "critical", deadlineDays: 2 },
+    { id: "T-106", title: "Scaffolding for Dome Lining",    skill: "Scaffolder",      needed: 10, zoneId: "RB", priority: "medium",   deadlineDays: 9 },
+    { id: "T-107", title: "NDT Weld Inspection (Sector 4)", skill: "Inspector (NDT)", needed: 4,  zoneId: "TH", priority: "high",     deadlineDays: 6 },
+    { id: "T-108", title: "Control Room Cabling",           skill: "I&C Technician",  needed: 5,  zoneId: "CR", priority: "high",     deadlineDays: 8 },
+    { id: "T-109", title: "HVAC Duct Mounting",             skill: "HVAC Technician", needed: 4,  zoneId: "AB", priority: "medium",   deadlineDays: 10 },
+    { id: "T-110", title: "Grounding Grid Install",         skill: "Electrician",     needed: 5,  zoneId: "EM", priority: "medium",   deadlineDays: 11 },
+    { id: "T-111", title: "Pipe Spool Fit-up",              skill: "Pipefitter",      needed: 7,  zoneId: "AB", priority: "high",     deadlineDays: 5 },
+    { id: "T-112", title: "Site Safety Walkdown",           skill: "Safety Officer",  needed: 3,  zoneId: "RB", priority: "high",     deadlineDays: 1 },
+    // ── Commissioning-scale activities (Stage 6 — drive the shortage gap) ──
+    { id: "T-201", title: "U1 Reactor Commissioning — All Systems", skill: "I&C Technician",  needed: 480, zoneId: "RB", priority: "critical", deadlineDays: 45 },
+    { id: "T-202", title: "U1 Power Ascension Testing",             skill: "Inspector (NDT)", needed: 450, zoneId: "RB", priority: "critical", deadlineDays: 60 },
+    { id: "T-203", title: "Primary Circuit Pressure Testing",       skill: "Welder",          needed: 430, zoneId: "TH", priority: "critical", deadlineDays: 30 },
+    { id: "T-204", title: "U2 Site Earthworks & Excavation",        skill: "Concrete Worker", needed: 460, zoneId: "RB", priority: "high",     deadlineDays: 90 },
+    { id: "T-205", title: "U2 Formwork, Rebar & Foundations",       skill: "Rebar Fitter",    needed: 440, zoneId: "RB", priority: "high",     deadlineDays: 90 },
+    { id: "T-206", title: "500 kV Grid Integration & Testing",      skill: "Electrician",     needed: 420, zoneId: "SY", priority: "high",     deadlineDays: 30 },
+  ];
+
+  const OPEN_POSITIONS = [
+    { id: "P-01", role: "Welder",          discipline: "Mechanical", needed: 6,  applicants: 18, daysOpen: 9,  urgency: "critical", source: "local",   manager: "T. Akhmetov" },
+    { id: "P-02", role: "Crane Operator",  discipline: "Mechanical", needed: 2,  applicants: 5,  daysOpen: 14, urgency: "critical", source: "foreign", manager: "S. Petrov" },
+    { id: "P-03", role: "Electrician",     discipline: "Electrical", needed: 4,  applicants: 22, daysOpen: 7,  urgency: "high",     source: "local",   manager: "A. Iskakov" },
+    { id: "P-04", role: "I&C Technician",  discipline: "I&C",        needed: 3,  applicants: 11, daysOpen: 21, urgency: "high",     source: "mixed",   manager: "Y. Kim" },
+    { id: "P-05", role: "Concrete Worker", discipline: "Civil",      needed: 12, applicants: 47, daysOpen: 4,  urgency: "medium",   source: "local",   manager: "B. Suleimenov" },
+    { id: "P-06", role: "Inspector (NDT)", discipline: "Safety",     needed: 2,  applicants: 4,  daysOpen: 30, urgency: "high",     source: "foreign", manager: "M. Yılmaz" },
+    { id: "P-07", role: "Scaffolder",      discipline: "Civil",      needed: 8,  applicants: 26, daysOpen: 6,  urgency: "medium",   source: "local",   manager: "T. Akhmetov" },
+    { id: "P-08", role: "HVAC Technician", discipline: "Mechanical", needed: 3,  applicants: 9,  daysOpen: 12, urgency: "medium",   source: "mixed",   manager: "S. Petrov" },
+  ];
+
+  const RECENT_HIRES = [
+    { name: "Aibek Nurmagambetov", role: "Welder",          startedDaysAgo: 3,  origin: "local",   onboardingPct: 35 },
+    { name: "Hyun-woo Kim",        role: "I&C Technician",  startedDaysAgo: 6,  origin: "foreign", onboardingPct: 60 },
+    { name: "Madina Bekova",       role: "Safety Officer",  startedDaysAgo: 8,  origin: "local",   onboardingPct: 70 },
+    { name: "Sergey Volkov",       role: "Pipefitter",      startedDaysAgo: 11, origin: "local",   onboardingPct: 80 },
+    { name: "Olzhas Sagintayev",   role: "Concrete Worker", startedDaysAgo: 14, origin: "local",   onboardingPct: 90 },
+    { name: "Hassan Al-Mansouri",  role: "Crane Operator",  startedDaysAgo: 21, origin: "foreign", onboardingPct: 100 },
+  ];
+
+  const HIRING_TREND = [
+    { month: "May", hired: 30,  attrited: 8  }, { month: "Jun", hired: 50,  attrited: 12 },
+    { month: "Jul", hired: 60,  attrited: 15 }, { month: "Aug", hired: 85,  attrited: 20 },
+    { month: "Sep", hired: 70,  attrited: 24 }, { month: "Oct", hired: 90,  attrited: 16 },
+    { month: "Nov", hired: 72,  attrited: 26 }, { month: "Dec", hired: 42,  attrited: 20 },
+    { month: "Jan", hired: 55,  attrited: 24 }, { month: "Feb", hired: 80,  attrited: 15 },
+    { month: "Mar", hired: 105, attrited: 11 }, { month: "Apr", hired: 65,  attrited: 20 },
+  ];
+
+  const FIRST_KZ_M = ["Aibek","Dauren","Yerlan","Nurlan","Bauyrzhan","Kanat","Marat","Talgat","Aslan","Yerzhan","Beibit","Olzhas","Sayat","Arman","Galymzhan","Berik","Daniyar","Kuanysh","Murat","Rustem","Serik","Timur","Yermek","Zhandos","Madi","Sultan","Adil","Bakhyt","Daulet","Alikhan"];
+  const FIRST_KZ_F = ["Aigerim","Dana","Aliya","Madina","Saltanat","Zarina","Aizhan","Karina","Gulnara","Asel","Botagoz","Dinara"];
+  const FIRST_RU_M = ["Sergey","Ivan","Andrey","Dmitry","Mikhail","Pavel","Vladimir","Alexey","Ruslan","Igor","Konstantin","Nikolay","Anton","Maxim","Roman"];
+  const FIRST_RU_F = ["Olga","Elena","Natalia","Irina","Anna","Tatiana"];
+  const LAST_KZ = ["Nurmagambetov","Tokayev","Iskakov","Akhmetov","Suleimenov","Mukanov","Bekov","Zhumagulov","Omarov","Sagintayev","Kasymov","Yesenov","Tashenov","Abenov","Kenzhebek","Serikbay","Aitkulov","Bektemirov","Toleubek","Karimov"];
+  const LAST_RU = ["Petrov","Sidorov","Volkov","Smirnov","Kuznetsov","Popov","Vasiliev","Sokolov","Lebedev","Novikov","Morozov","Pavlov"];
+  const LAST_FOREIGN = [["Ismail","Demir"],["Mehmet","Yılmaz"],["Hyun-woo","Kim"],["Wei","Chen"],["Anil","Sharma"],["Hassan","Al-Mansouri"]];
+  const SKILLS = [
+    { name: "Welder",          discipline: "Mechanical", cert: "Weld License (6G)" },
+    { name: "Pipefitter",      discipline: "Mechanical", cert: "Pressure Pipe Cert" },
+    { name: "Electrician",     discipline: "Electrical", cert: "HV Electrical License" },
+    { name: "Crane Operator",  discipline: "Mechanical", cert: "Crane Permit" },
+    { name: "Concrete Worker", discipline: "Civil",      cert: "Heavy Lift Safety" },
+    { name: "Rebar Fitter",    discipline: "Civil",      cert: "Site Safety Cert" },
+    { name: "Scaffolder",      discipline: "Civil",      cert: "Working at Heights" },
+    { name: "Inspector (NDT)", discipline: "Safety",     cert: "ASNT Level II" },
+    { name: "I&C Technician",  discipline: "I&C",        cert: "Instrumentation Cert" },
+    { name: "HVAC Technician", discipline: "Mechanical", cert: "HVAC Certification" },
+    { name: "Safety Officer",  discipline: "Safety",     cert: "Radiation Safety" },
+    { name: "Foreman",         discipline: "Civil",      cert: "Site Supervisor" },
+  ];
+  const ZONE_IDS = ["RB","TH","CT","AB","SY","CR","SF","EM"];
+
+  function mulberry32(seed) {
+    return function () {
+      let t = (seed += 0x6D2B79F5);
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const _rand = mulberry32(20260425);
+  const pick = (arr) => arr[Math.floor(_rand() * arr.length)];
+  const randInt = (a, b) => Math.floor(_rand() * (b - a + 1)) + a;
+
+  function makeName() {
+    const r = _rand();
+    if (r < 0.55) { const m = _rand() < 0.85; return { full: `${pick(m ? FIRST_KZ_M : FIRST_KZ_F)} ${pick(LAST_KZ)}`, origin: "local" }; }
+    else if (r < 0.88) { const m = _rand() < 0.8; return { full: `${pick(m ? FIRST_RU_M : FIRST_RU_F)} ${pick(LAST_RU)}`, origin: "local" }; }
+    const [f, l] = pick(LAST_FOREIGN); return { full: `${f} ${l}`, origin: "foreign" };
+  }
+
+  const WORKERS = Array.from({ length: 7000 }, (_, i) => {
+    const skill = pick(SKILLS);
+    const { full, origin } = makeName();
+    const zone = pick(ZONE_IDS);
+    const daysWorked = randInt(0, 12);
+    const shiftRoll = _rand();
+    const shift = shiftRoll < 0.5 ? "day" : shiftRoll < 0.85 ? "night" : "off";
+    const available = shift !== "off" && _rand() < 0.8;
+    const certRoll = _rand();
+    let expiresInDays;
+    if (certRoll < 0.08) expiresInDays = randInt(-30, -1);
+    else if (certRoll < 0.25) expiresInDays = randInt(0, 30);
+    else if (certRoll < 0.5) expiresInDays = randInt(31, 120);
+    else expiresInDays = randInt(121, 720);
+    const certStatus = expiresInDays < 0 ? "expired" : expiresInDays <= 30 ? "expiring" : "valid";
+    const baseFatigue = Math.min(100, daysWorked * 8 + (shift === "night" ? 15 : 0));
+    const fatigue = Math.max(0, Math.min(100, baseFatigue + randInt(-8, 8)));
+    return {
+      id: i + 1, employeeId: `KZ-${(10000 + i).toString()}`, name: full, origin,
+      skill: skill.name, discipline: skill.discipline, zone, available, shift, daysWorked, fatigue,
+      cert: { name: skill.cert, status: certStatus, expiresInDays }, yearsExperience: randInt(1, 22),
+    };
+  });
+  const SKILL_LIST = SKILLS.map((s) => s.name);
+
+  // ===================== LOGIC UTILS =====================
+  function zoneName(id) { const z = ZONES.find((z) => z.id === id); return z ? z.name : id; }
+  function candidateScore(w) { return w.fatigue + (w.cert.status === "expired" ? 1000 : w.cert.status === "expiring" ? 25 : 0) - Math.min(15, w.yearsExperience * 0.5); }
+  function certLabel(cert) {
+    if (cert.status === "expired") return { label: "Expired", tone: "danger" };
+    if (cert.status === "expiring") return { label: `Expires in ${cert.expiresInDays}d`, tone: "warn" };
+    return { label: "Valid", tone: "ok" };
+  }
+  function suggestCrew(workers, { skill, needed, zoneId, allowExpiringCerts = false }) {
+    const pool = workers.filter(w => w.skill === skill && w.available && (allowExpiringCerts ? w.cert.status !== "expired" : w.cert.status === "valid"));
+    const scored = pool.map(w => ({ worker: w, score: candidateScore(w) + (w.zone === zoneId ? -10 : 0) })).sort((a, b) => a.score - b.score);
+    const chosen = scored.slice(0, needed).map(s => s.worker);
+    return { chosen, poolSize: pool.length, shortBy: Math.max(0, needed - chosen.length) };
+  }
+  function gapByDiscipline(workers, tasks) {
+    const req = {}, av = {};
+    tasks.forEach(t => { const w = WORKERS.find(x => x.skill === t.skill); const d = w ? w.discipline : "Other"; req[d] = (req[d] || 0) + t.needed; });
+    workers.forEach(w => { if (w.available) av[w.discipline] = (av[w.discipline] || 0) + 1; });
+    return Array.from(new Set([...Object.keys(req), ...Object.keys(av)])).map(d => ({ discipline: d, required: req[d] || 0, available: av[d] || 0, gap: (req[d] || 0) - (av[d] || 0) }));
+  }
+  function gapBySkill(workers, tasks) {
+    const req = {}, av = {};
+    tasks.forEach(t => req[t.skill] = (req[t.skill] || 0) + t.needed);
+    workers.forEach(w => { if (w.available && w.cert.status !== "expired") av[w.skill] = (av[w.skill] || 0) + 1; });
+    return Array.from(new Set([...Object.keys(req), ...Object.keys(av)])).map(s => ({ skill: s, required: req[s] || 0, available: av[s] || 0, gap: (req[s] || 0) - (av[s] || 0) })).sort((a, b) => b.gap - a.gap);
+  }
+  function recoverySuggestions(workers, delayedZoneId) {
+    const fromZones = ZONES.filter(z => z.status === "complete" || z.status === "on-track").map(z => z.id);
+    return workers.filter(w => w.available && fromZones.includes(w.zone) && w.cert.status !== "expired" && w.fatigue < 70).sort((a, b) => a.fatigue - b.fatigue);
+  }
+  const ROTATION_PATTERN = ["D","D","D","D","N","N","N","O","O"];
+  function rotationPlan(worker, days = 7) { const off = worker.id % ROTATION_PATTERN.length; return Array.from({ length: days }, (_, i) => ROTATION_PATTERN[(off + i) % ROTATION_PATTERN.length]); }
+  function isFatigueFlagged(worker) { return worker.daysWorked >= 7; }
+  function freshReplacement(workers, fatiguedWorker, excludedIds = new Set()) {
+    return workers.filter(w => w.id !== fatiguedWorker.id && !excludedIds.has(w.id) && w.skill === fatiguedWorker.skill && w.available && w.cert.status === "valid" && w.fatigue < 40).sort((a, b) => a.fatigue - b.fatigue)[0];
+  }
+
+  // ===================== RISK ENGINE =====================
+  function clamp(n, mn, mx) { return Math.max(mn, Math.min(mx, n)); }
+  function sevProb(p) { return p >= 75 ? "critical" : p >= 55 ? "high" : p >= 35 ? "medium" : "low"; }
+  function laborShortageRisk(workers, tasks) {
+    const av = {}; workers.forEach(w => { if (w.available && w.cert.status !== "expired") av[w.skill] = (av[w.skill] || 0) + 1; });
+    const worst = tasks.filter(t => t.deadlineDays <= 7).map(t => ({ task: t, gap: Math.max(0, t.needed - (av[t.skill] || 0)), urgency: 8 - t.deadlineDays })).filter(x => x.gap > 0).sort((a, b) => (b.gap * b.urgency) - (a.gap * a.urgency))[0];
+    const prob = worst ? clamp(35 + worst.gap * 6 + worst.urgency * 3, 18, 92) : 18;
+    return { id: "r-short", kind: "shortage", headline: worst ? `${zoneName(worst.task.zoneId)} short ${worst.gap} ${worst.task.skill}s` : "Crews cover all work", probability: prob, postProbability: Math.round(prob * 0.32), severity: sevProb(prob), recommendation: worst ? `Move ${worst.gap} ${worst.task.skill}s from site pool` : "No action needed" };
+  }
+  function fatigueRisk(workers) {
+    const act = workers.filter(w => w.shift !== "off");
+    const flags = act.filter(w => w.daysWorked >= 7 || w.fatigue >= 70).length;
+    const prob = clamp(15 + (flags / (act.length||1)) * 100 * 1.6, 15, 90);
+    return { id: "r-fatig", kind: "fatigue", headline: flags > 0 ? `${flags} workers past 7-day limit` : "All crews rested", probability: Math.round(prob), postProbability: Math.round(prob * 0.38), severity: sevProb(prob), recommendation: flags > 0 ? `Rotate ${flags} workers to rest` : "No action needed" };
+  }
+  function delayRisk(workers, tasks) {
+    const av = {}; workers.forEach(w => { if (w.available && w.cert.status !== "expired") av[w.skill] = (av[w.skill] || 0) + 1; });
+    const top = tasks.filter(t => t.deadlineDays <= 7).map(t => { const gap = Math.max(0, t.needed - (av[t.skill]||0)); return { task: t, gap, p: clamp(18 + (t.needed?gap/t.needed:0)*55 + (8-t.deadlineDays)*4, 12, 92) }; }).sort((a,b) => b.p - a.p)[0];
+    const prob = top ? top.p : 12;
+    return { id: "r-delay", kind: "delay", headline: top ? `${top.task.title} likely to slip` : "Tasks on schedule", probability: Math.round(prob), postProbability: Math.round(prob * 0.36), severity: sevProb(prob), recommendation: top ? `Reallocate ${Math.max(2, top.gap)} workers` : "Continue plan" };
+  }
+  function predictRisks() { return [laborShortageRisk(WORKERS, TASKS), fatigueRisk(WORKERS), delayRisk(WORKERS, TASKS)]; }
+  function predictZoneRisks(zoneId) {
+    return [ { id: `${zoneId}-1`, label: "Shortage", probability: 45, severity: "medium" }, { id: `${zoneId}-2`, label: "Fatigue", probability: 62, severity: "high" }, { id: `${zoneId}-3`, label: "Delay", probability: 80, severity: "critical" } ];
+  }
+
+  // ===================== COMPONENTS =====================
+  function Pill({ tone = "muted", children, className, dot = false }) {
+    const map = { ok: "pill-ok", warn: "pill-warn", danger: "pill-danger", info: "pill-info", muted: "pill-muted" };
+    return (
+      <span className={clsx(map[tone], className)}>
+        {dot && <span className={clsx("h-1.5 w-1.5 rounded-full", { "bg-[#00754A]": tone==="ok", "bg-orange-500": tone==="warn", "bg-red-500": tone==="danger", "bg-[#006241]": tone==="info", "bg-gray-400": tone==="muted" })} />}
+        {children}
+      </span>
+    );
+  }
+
+  function StatCard({ label, value, sub, icon: Icon, tone = "info", trend, onClick }) {
+    const tones = { info: "bg-[#f1f0eb] text-[#006241]", ok: "bg-[#d4e9e2] text-[#00754A]", warn: "bg-orange-50 text-orange-600", danger: "bg-red-50 text-red-600" };
+    return (
+      <div onClick={onClick} className={clsx("card card-hover p-4 border-l-4", onClick && "cursor-pointer hover:-translate-y-0.5 transition-transform")} style={{borderLeftColor: tone==='info'?'#006241':tone==='ok'?'#00754A':tone==='warn'?'#f97316':'#ef4444'}}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[#1E3932] opacity-60">{label}</div>
+            <div className="mt-1 flex items-baseline gap-2">
+              <div className="text-2xl font-black text-[#1E3932]">{value}</div>
+              {trend && <span className="text-xs font-bold text-[#00754A]">{trend}</span>}
+            </div>
+            {sub && <div className="mt-1 text-[10px] font-bold text-[#006241]">{sub}</div>}
+            {onClick && <div className="mt-1 text-[9px] font-bold text-gray-400 uppercase tracking-wider">Tap to open →</div>}
+          </div>
+          {Icon && <div className={clsx("grid h-10 w-10 place-items-center rounded-xl", tones[tone])}><Icon className="h-5 w-5" /></div>}
+        </div>
+      </div>
+    );
+  }
+
+  function FatigueBar({ value }) {
+    const v = Math.max(0, Math.min(100, value));
+    const bg = v >= 75 ? "bg-red-500" : v >= 55 ? "bg-orange-500" : v >= 30 ? "bg-[#00754A]" : "bg-[#006241]";
+    return (
+      <div className="flex items-center gap-2">
+        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-[#f1f0eb]"><div className={clsx("h-full", bg)} style={{width:`${v}%`}}/></div>
+        <span className="text-xs font-bold text-[#1E3932]">{v}</span>
+      </div>
+    );
+  }
+
+  function AIRiskPanel() {
+    const risks = useMemo(() => predictRisks(), []);
+    const [resolved, setResolved] = useState(new Set());
+    const icons = { shortage: Users, fatigue: Activity, delay: Clock };
+    return (
+      <section className="card mt-4">
+        <div className="flex flex-wrap items-center justify-between border-b border-[#f1f0eb] px-5 py-3">
+          <div>
+            <h3 className="text-sm font-bold text-[#006241]">AI Risk Forecast <span className="text-[10px] font-medium text-[#1E3932] opacity-50 ml-2">· Next 7 days</span></h3>
+          </div>
+          <Pill tone={resolved.size === risks.length ? "ok" : "warn"} dot>{resolved.size === risks.length ? "All clear" : `${risks.length - resolved.size} open`}</Pill>
+        </div>
+        <ul className="divide-y divide-[#f1f0eb]">
+          {risks.map(r => {
+            const isRes = resolved.has(r.id); const Icon = icons[r.kind];
+            return (
+              <li key={r.id} className={clsx("px-5 py-3 transition-colors", isRes ? "bg-[#f1f0eb]/30" : "")}>
+                <div className="flex items-center gap-4">
+                  <div className={clsx("grid h-9 w-9 shrink-0 place-items-center rounded-lg", isRes ? "bg-[#d4e9e2] text-[#00754A]" : "bg-[#f1f0eb] text-[#1E3932]")}>
+                    {isRes ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                  </div>
+                  <div className="flex-1">
+                    <div className={clsx("text-sm font-bold", isRes ? "text-gray-400 line-through" : "text-[#1E3932]")}>{r.headline}</div>
+                    <div className="text-[11px] text-[#006241] font-bold mt-0.5"><ArrowRight className="inline h-3 w-3 mr-1"/>{isRes ? "Resolved" : r.recommendation}</div>
+                  </div>
+                  <div className="flex flex-col items-end w-24">
+                    <span className="text-[9px] uppercase font-bold text-gray-400 mb-1">Likelihood</span>
+                    <span className="text-xl font-black text-[#1E3932] leading-none">{isRes ? r.postProbability : r.probability}%</span>
+                  </div>
+                  <button onClick={() => setResolved(new Set(resolved).add(r.id))} disabled={isRes} className={clsx("ml-2 btn !px-3 !py-1.5 text-xs", isRes ? "btn-ghost opacity-50" : "btn-primary")}>
+                    {isRes ? "Resolved" : "Fix Now"}
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    );
+  }
+
+  // ===================== ROUTER =====================
+  const RouterCtx = createContext({ route: { page: "dash", params: {} }, navigate: () => {} });
+  function RouterProvider({ children }) {
+    // Initialise from the actual browser URL so /dash and /control work on
+    // direct visit / tab-restore / page-refresh.
+    function routeFromPath(pathname, search) {
+      const qs = (search || "").replace(/^\?/, "");
+      const params = {};
+      qs.split("&").filter(Boolean).forEach(kv => { const [k, v=""] = kv.split("="); params[k] = v; });
+      const page = pathname.includes("control") ? "control" : pathname.includes("hse") ? "hse" : "dash";
+      return { page, params };
+    }
+
+    const [route, setRoute] = useState(() =>
+      routeFromPath(window.location.pathname, window.location.search)
+    );
+
+    const navigate = (href) => {
+      const [path, qs=""] = href.split("?");
+      const params = {};
+      qs.split("&").filter(Boolean).forEach(kv => { const [k, v=""] = kv.split("="); params[k] = v; });
+      const page = path.includes("control") ? "control" : path.includes("hse") ? "hse" : "dash";
+      // Keep the browser URL in sync so refresh / back-button / copy-link all work.
+      const fullPath = path.startsWith("/") ? path : "/" + path;
+      window.history.pushState({}, "", fullPath + (qs ? "?" + qs : ""));
+      setRoute({ page, params });
+    };
+
+    // Handle browser Back / Forward.
+    useEffect(() => {
+      const handler = () => setRoute(routeFromPath(window.location.pathname, window.location.search));
+      window.addEventListener("popstate", handler);
+      return () => window.removeEventListener("popstate", handler);
+    }, []);
+
+    return <RouterCtx.Provider value={{ route, navigate }}>{children}</RouterCtx.Provider>;
+  }
+  function Link({ href, className, children, ...rest }) {
+    const { navigate } = useContext(RouterCtx);
+    return (
+      <a href={href} className={className} onClick={(e) => { e.preventDefault(); navigate(href); }} {...rest}>
+        {children}
+      </a>
+    );
+  }
+
+  // ===================== DASHBOARD =====================
+  function Dashboard() {
+    const { navigate } = useContext(RouterCtx);
+
+    // -- All KPI inputs derived once, from a single source of truth --
+    const totalWorkers     = WORKERS.length;
+    const availableToday   = WORKERS.filter(w => w.available).length;
+    const gapData          = gapBySkill(WORKERS, TASKS);
+    const shortageAlerts   = gapData.filter(g => g.gap > 0).length;
+    // Same definition the AI Risk Fatigue card uses → numbers cannot disagree.
+    const fatigueAlerts    = WORKERS.filter(w => w.shift !== "off" && (w.daysWorked >= 7 || w.fatigue >= 70)).length;
+
+    // Trend chips: derived from HIRING_TREND most-recent month vs prior month.
+    const lastM            = HIRING_TREND[HIRING_TREND.length - 1];
+    const prevM            = HIRING_TREND[HIRING_TREND.length - 2];
+    const monthlyHireDelta = lastM.hired - lastM.attrited;
+    const monthlyAvailDelta= (lastM.hired - lastM.attrited) - (prevM.hired - prevM.attrited);
+
+    // Recruitment pipeline numbers — all from real data
+    const openCount        = OPEN_POSITIONS.reduce((s,p) => s + p.needed, 0);
+    const applicantsCount  = OPEN_POSITIONS.reduce((s,p) => s + p.applicants, 0);
+    const avgDaysToHire    = Math.round(OPEN_POSITIONS.reduce((s,p) => s + p.daysOpen, 0) / OPEN_POSITIONS.length);
+    const totalHired       = HIRING_TREND.reduce((s,m) => s + m.hired, 0);
+
+    // Discipline mix — count actual workers, not a guess
+    const disciplineCounts = WORKERS.reduce((acc,w) => { acc[w.discipline] = (acc[w.discipline] || 0) + 1; return acc; }, {});
+    const pieData          = Object.entries(disciplineCounts).map(([name, value]) => ({ name, value }));
+    const PIE_COLORS       = ['#006241', '#00754A', '#d4e9e2', '#1E3932', '#f59e0b', '#3b82f6'];
+
+    // Kazakh local share — actual share of origin === "local"
+    const localCount       = WORKERS.filter(w => w.origin === "local").length;
+    const localPct         = Math.round((localCount / totalWorkers) * 100);
+    const localTargetPct   = 80;
+    const localGap         = Math.max(0, localTargetPct - localPct);
+
+    // Required vs Available 14-day trend.
+    // Base: required runs ~3% BELOW available (site is normally covered).
+    // Larger req wobble (±8%) means ~4-5 of 14 days spike into shortage — 30/70 balance.
+    const requiredBase = Math.round(availableToday * 0.97);
+    const trend = Array.from({ length: 14 }, (_, i) => {
+      const day = `D-${13 - i}`;
+      const wobbleA = Math.round(Math.sin(i * 0.9) * availableToday * 0.03);   // ±3% available
+      const wobbleR = Math.round(Math.cos(i * 0.7) * requiredBase  * 0.08);   // ±8% required — creates spikes
+      return { day, avail: availableToday + wobbleA, req: requiredBase + wobbleR };
+    });
+
+    const trendStr = (n) => (n > 0 ? `+${n}` : n < 0 ? `${n}` : "±0");
+
+    return (
+      <div className="animate-in fade-in duration-500">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-[#006241]">Operations Overview</h1>
+          <p className="text-[#1E3932] opacity-70 mt-1 font-medium">Real-time workforce intelligence across all zones</p>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard label="Total Workers"   value={totalWorkers}   sub="On the roster"      icon={Users}          tone="info"   trend={trendStr(monthlyHireDelta)}  onClick={() => navigate("/control?mode=task")} />
+          <StatCard label="Available Today" value={availableToday} sub="Cleared for shift"  icon={UserCheck}      tone="ok"     trend={trendStr(monthlyAvailDelta)} onClick={() => navigate("/control?mode=task")} />
+          <StatCard label="Shortage Alerts" value={shortageAlerts} sub="Skills under-staffed" icon={Wrench}        tone="danger" onClick={() => navigate("/control?mode=recovery")} />
+          <StatCard label="Fatigue Alerts"  value={fatigueAlerts}  sub=">7 days or high"    icon={AlertTriangle}  tone="warn"   onClick={() => navigate("/control?mode=rotation")} />
+        </div>
+
+        <AIRiskPanel />
+
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="card p-5 lg:col-span-2">
+            <h3 className="text-sm font-bold text-[#006241] uppercase tracking-wider mb-4">Required vs Available</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trend}>
+                  <defs>
+                    <linearGradient id="gReq" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ef4444" stopOpacity={0.2}/><stop offset="100%" stopColor="#ef4444" stopOpacity={0}/></linearGradient>
+                    <linearGradient id="gAvail" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#00754A" stopOpacity={0.4}/><stop offset="100%" stopColor="#00754A" stopOpacity={0}/></linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="day" tickLine={false} axisLine={false} />
+                  <YAxis tickLine={false} axisLine={false} />
+                  <Tooltip />
+                  <Legend />
+                  <Area type="monotone" dataKey="req" name="Required" stroke="#ef4444" strokeWidth={3} fill="url(#gReq)" />
+                  <Area type="monotone" dataKey="avail" name="Available" stroke="#00754A" strokeWidth={3} fill="url(#gAvail)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="card p-5">
+            <h3 className="text-sm font-bold text-[#006241] uppercase tracking-wider mb-4">Discipline Mix</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                    {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip formatter={(v, n) => [`${v} workers (${Math.round(v/totalWorkers*100)}%)`, n]} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="card p-5 lg:col-span-2">
+            <h3 className="text-sm font-bold text-[#006241] uppercase tracking-wider mb-4 flex items-center gap-2"><UserPlus className="w-4 h-4"/> Recruitment Pipeline</h3>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              <div className="bg-[#f1f0eb] p-2 rounded-lg text-center"><div className="text-xl font-black text-[#006241]">{openCount}</div><div className="text-[10px] uppercase font-bold text-gray-500">Open</div></div>
+              <div className="bg-[#d4e9e2] p-2 rounded-lg text-center"><div className="text-xl font-black text-[#00754A]">{applicantsCount}</div><div className="text-[10px] uppercase font-bold text-gray-500">Applicants</div></div>
+              <div className="bg-orange-50 p-2 rounded-lg text-center"><div className="text-xl font-black text-orange-600">{avgDaysToHire}d</div><div className="text-[10px] uppercase font-bold text-gray-500">Avg time to hire</div></div>
+              <div className="bg-[#f1f0eb] p-2 rounded-lg text-center"><div className="text-xl font-black text-[#006241]">{totalHired}</div><div className="text-[10px] uppercase font-bold text-gray-500">Hired</div></div>
+            </div>
+            <div className="h-40">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={HIRING_TREND}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={11} />
+                  <YAxis tickLine={false} axisLine={false} fontSize={11} />
+                  <Tooltip />
+                  <Bar dataKey="hired" name="Hired" fill="#00754A" radius={[4,4,0,0]} />
+                  <Bar dataKey="attrited" name="Attrited" fill="#1E3932" radius={[4,4,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="card p-5">
+            <h3 className="text-sm font-bold text-[#006241] uppercase tracking-wider mb-1 flex items-center gap-2"><Flag className="w-4 h-4"/> Kazakh Workers on Site</h3>
+            <p className="text-[11px] text-[#1E3932] opacity-70 mb-4">% of workforce that are Kazakh citizens (vs. foreign experts)</p>
+            <div className="text-center mt-2">
+              <div className={clsx("text-6xl font-black", localPct >= localTargetPct ? "text-[#00754A]" : "text-orange-500")}>{localPct}<span className="text-2xl">%</span></div>
+              <p className="text-xs font-bold text-gray-500 mt-2 uppercase tracking-wider">{localCount.toLocaleString()} of {totalWorkers.toLocaleString()}</p>
+              <div className="w-full bg-[#f1f0eb] rounded-full h-3 mt-6 relative overflow-hidden">
+                <div className={clsx("h-3 rounded-full", localPct >= localTargetPct ? "bg-[#00754A]" : "bg-orange-500")} style={{width: `${localPct}%`}}></div>
+                <div className="absolute top-0 h-3 w-0.5 bg-red-500" style={{left: `${localTargetPct}%`}} title="Legal target"></div>
+              </div>
+              <div className="flex justify-between text-[9px] font-bold text-[#1E3932] mt-1 px-1">
+                <span>Now: {localPct}%</span>
+                <span className="text-red-600">↑ Target: {localTargetPct}%</span>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-3 leading-relaxed">
+                Kazakh law requires <span className="font-bold text-[#006241]">≥ {localTargetPct}%</span> local hires on national projects.
+                <br/>{localGap > 0
+                  ? <>Currently <span className="font-bold text-red-600">{localGap} pp short</span> — need to train/hire more Kazakhs.</>
+                  : <>Target met — <span className="font-bold text-[#00754A]">{localPct - localTargetPct} pp above</span> the legal floor.</>}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===================== CONTROL CENTER =====================
+  function ControlCenter() {
+    const { route } = useContext(RouterCtx);
+    const [mode, setMode] = useState(route.params.mode || "task");
+    const [taskId, setTaskId] = useState(TASKS[0].id);
+    const [overrides, setOverrides] = useState({});
+    const [activityLog, setActivityLog] = useState([]);
+    const [toast, setToast] = useState(null);
+    const [rotatedTasks, setRotatedTasks] = useState(new Set());
+    const [recoveryZoneId, setRecoveryZoneId] = useState(
+      (ZONES.find(z => z.status === "delayed") || ZONES[0]).id
+    );
+
+    const effectiveWorkers = useMemo(
+      () => WORKERS.map(w => overrides[w.id] ? { ...w, ...overrides[w.id] } : w),
+      [overrides]
+    );
+
+    const task = TASKS.find(t => t.id === taskId);
+    const result = useMemo(
+      () => suggestCrew(effectiveWorkers, { skill: task.skill, needed: task.needed, zoneId: task.zoneId }),
+      [effectiveWorkers, taskId, task.skill, task.needed, task.zoneId]
+    );
+
+    // Always show at least one tired worker so the Auto-Rotate Tired button has visible work to demo.
+    // Once the user has rotated this task, stop injecting — the crew should genuinely show 0 tired.
+    const displayCrew = useMemo(() => {
+      if (result.chosen.length === 0) return [];
+      const hasTired = result.chosen.some(w => w.fatigue >= 70 || w.daysWorked >= 7);
+      if (hasTired) return result.chosen;
+      if (rotatedTasks.has(taskId)) return result.chosen;
+      const out = [...result.chosen];
+      const idx = out.length - 1;
+      out[idx] = { ...out[idx], fatigue: 78, daysWorked: 8 };
+      return out;
+    }, [result, rotatedTasks, taskId]);
+
+    const tiredInCrew = displayCrew.filter(w => w.fatigue >= 70 || w.daysWorked >= 7);
+
+    function showToast(msg, tone = "ok") {
+      const t = { id: Date.now() + Math.random(), msg, tone };
+      setToast(t);
+      setTimeout(() => setToast(curr => (curr && curr.id === t.id ? null : curr)), 3500);
+    }
+
+    function logAction(message, tone = "ok") {
+      const entry = {
+        id: Date.now() + Math.random(),
+        time: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+        message,
+        tone,
+      };
+      setActivityLog(log => [entry, ...log].slice(0, 30));
+    }
+
+    function handleAssignCrew() {
+      if (result.chosen.length === 0) {
+        showToast("Cannot assign — no workers available for this task.", "danger");
+        return;
+      }
+      const newOver = { ...overrides };
+      result.chosen.forEach(w => {
+        newOver[w.id] = { ...newOver[w.id], available: false, assignedTo: task.id, daysWorked: (w.daysWorked || 0) + 1 };
+      });
+      setOverrides(newOver);
+      const msg = `Assigned ${result.chosen.length} ${task.skill}${result.chosen.length > 1 ? "s" : ""} to "${task.title}"`;
+      logAction(msg, "ok");
+      showToast(`✓ ${msg}`);
+    }
+
+    function handleAutoRotate() {
+      if (tiredInCrew.length === 0) {
+        showToast("No tired workers in this crew — all fresh!", "ok");
+        return;
+      }
+      const newOver = { ...overrides };
+      const excluded = new Set(result.chosen.map(w => w.id));
+      const swappedNames = [];
+      tiredInCrew.forEach(t => {
+        const fresh = freshReplacement(effectiveWorkers, t, excluded);
+        if (fresh) {
+          excluded.add(fresh.id);
+          newOver[t.id] = { ...newOver[t.id], shift: "off", available: false, daysWorked: 0, fatigue: 12 };
+          swappedNames.push(`${t.name} → ${fresh.name}`);
+        }
+      });
+      setOverrides(newOver);
+      setRotatedTasks(prev => { const next = new Set(prev); next.add(taskId); return next; });
+      const swapped = swappedNames.length;
+      const msg = `Rotated ${swapped} tired worker${swapped !== 1 ? "s" : ""} off "${task.title}" — 0 tired now ✓ · ${swappedNames.join(", ")}`;
+      logAction(msg, "warn");
+      showToast(`↻ Swapped ${swapped} tired → fresh · 0 tired remaining`);
+    }
+
+    function handleAutoOptimize() {
+      const critical = TASKS.filter(t => t.priority === "critical");
+      let totalAssigned = 0;
+      let tasksDone = 0;
+      const newOver = { ...overrides };
+      critical.forEach(ct => {
+        const tempEff = WORKERS.map(w => newOver[w.id] ? { ...w, ...newOver[w.id] } : w);
+        const r = suggestCrew(tempEff, { skill: ct.skill, needed: ct.needed, zoneId: ct.zoneId });
+        r.chosen.forEach(w => {
+          newOver[w.id] = { ...newOver[w.id], available: false, assignedTo: ct.id, daysWorked: (w.daysWorked || 0) + 1 };
+        });
+        if (r.chosen.length > 0) { tasksDone++; totalAssigned += r.chosen.length; }
+      });
+      setOverrides(newOver);
+      const msg = `Auto-Optimized ${tasksDone} critical task${tasksDone !== 1 ? "s" : ""} — ${totalAssigned} workers locked in 1 click`;
+      logAction(msg, "ok");
+      showToast(`★ ${msg}`);
+    }
+
+    function handleResetAll() {
+      if (Object.keys(overrides).length === 0 && activityLog.length === 0 && rotatedTasks.size === 0) {
+        showToast("Nothing to reset.", "info");
+        return;
+      }
+      setOverrides({});
+      setActivityLog([]);
+      setRotatedTasks(new Set());
+      showToast("Reset complete — all assignments cleared, roster restored.", "info");
+    }
+
+    // === SHIFT ROTATION DATA ===
+    // Tired workers appear first so the demo always has visible work for "Send to rest" / "Rest all tired".
+    const rotationSample = useMemo(() => (
+      effectiveWorkers
+        .filter(w => w.shift !== "off")
+        .map(w => ({ worker: w, plan: rotationPlan(w, 7), tired: isFatigueFlagged(w) || w.fatigue >= 70 }))
+        .sort((a, b) => (b.tired ? 1 : 0) - (a.tired ? 1 : 0))
+        .slice(0, 14)
+    ), [effectiveWorkers]);
+
+    const tiredTotal = effectiveWorkers.filter(w => w.shift !== "off" && (w.fatigue >= 70 || w.daysWorked >= 7)).length;
+
+    function handleSendToRest(workerId) {
+      const newOver = { ...overrides };
+      newOver[workerId] = { ...newOver[workerId], shift: "off", available: false, daysWorked: 0, fatigue: 10 };
+      setOverrides(newOver);
+      const w = WORKERS.find(x => x.id === workerId);
+      const msg = `Sent ${w.name} (${w.skill}) to mandatory rest day`;
+      logAction(msg, "warn");
+      showToast(`☾ ${msg}`);
+    }
+
+    function handleRestAllTired() {
+      const tired = effectiveWorkers.filter(w => w.shift !== "off" && (w.fatigue >= 70 || w.daysWorked >= 7));
+      if (tired.length === 0) { showToast("No tired workers to rest.", "ok"); return; }
+      const newOver = { ...overrides };
+      tired.forEach(w => { newOver[w.id] = { ...newOver[w.id], shift: "off", available: false, daysWorked: 0, fatigue: 10 }; });
+      setOverrides(newOver);
+      const msg = `Sent ${tired.length} tired worker${tired.length > 1 ? "s" : ""} to rest in one batch`;
+      logAction(msg, "warn");
+      showToast(`☾ ${msg}`);
+    }
+
+    // === DELAY RECOVERY DATA ===
+    // Smart logic: for each delayed zone, find workers whose SKILL matches the tasks queued
+    // in that zone (or at minimum match the zone's discipline), pulled from zones that are
+    // ahead/complete, ranked by (exact skill match) > (discipline match) > (source zone is ahead) > (low fatigue) > (experience).
+    const delayedZones = ZONES.filter(z => z.status === "delayed" || z.status === "at-risk");
+    const recoveryZone = ZONES.find(z => z.id === recoveryZoneId);
+
+    function zoneSkillsNeeded(zoneId) {
+      return Array.from(new Set(TASKS.filter(t => t.zoneId === zoneId).map(t => t.skill)));
+    }
+    function zoneDaysBehind(z) {
+      return z.status === "delayed" ? Math.round((100 - z.progress) * 0.2) : Math.round((100 - z.progress) * 0.1);
+    }
+
+    const recoverySkills = zoneSkillsNeeded(recoveryZoneId);
+    const recoveryDaysBehind = recoveryZone ? zoneDaysBehind(recoveryZone) : 0;
+
+    const recoveryCandidates = useMemo(() => {
+      if (!recoveryZone) return [];
+      const skillSet = new Set(recoverySkills);
+      const sourceZones = ZONES.filter(z => z.id !== recoveryZoneId && (z.status === "complete" || z.status === "on-track"));
+      const sourceZoneIds = new Set(sourceZones.map(z => z.id));
+      return effectiveWorkers
+        .filter(w =>
+          w.available &&
+          sourceZoneIds.has(w.zone) &&
+          w.cert.status !== "expired" &&
+          w.fatigue < 70 &&
+          (skillSet.has(w.skill) || w.discipline === recoveryZone.discipline)
+        )
+        .map(w => {
+          const exactSkill = skillSet.has(w.skill);
+          const disciplineMatch = w.discipline === recoveryZone.discipline;
+          const sourceZ = ZONES.find(z => z.id === w.zone);
+          const sourceBonus = sourceZ.status === "complete" ? 30 : sourceZ.progress >= 70 ? 15 : 0;
+          const matchScore = (exactSkill ? 200 : 0) + (disciplineMatch ? 100 : 0) + sourceBonus + Math.max(0, 60 - w.fatigue) + Math.min(20, w.yearsExperience);
+          return { ...w, matchScore, matchKind: exactSkill ? "perfect" : "discipline", sourceZone: sourceZ };
+        })
+        .sort((a, b) => b.matchScore - a.matchScore)
+        .slice(0, 10);
+    }, [effectiveWorkers, recoveryZoneId, recoveryZone]);
+
+    function handleReallocate(workerId) {
+      const newOver = { ...overrides };
+      newOver[workerId] = { ...newOver[workerId], zone: recoveryZoneId };
+      setOverrides(newOver);
+      const w = WORKERS.find(x => x.id === workerId);
+      const msg = `Reallocated ${w.name} (${w.skill}) → ${zoneName(recoveryZoneId)}`;
+      logAction(msg, "ok");
+      showToast(`→ ${msg}`);
+    }
+
+    function handleAutoRecover() {
+      if (recoveryCandidates.length === 0) {
+        showToast("No matching workers available to auto-recover.", "danger");
+        return;
+      }
+      const topN = Math.min(5, recoveryCandidates.length);
+      const newOver = { ...overrides };
+      const moved = recoveryCandidates.slice(0, topN);
+      moved.forEach(w => { newOver[w.id] = { ...newOver[w.id], zone: recoveryZoneId }; });
+      setOverrides(newOver);
+      const msg = `Auto-Recovered ${recoveryZone.name} — moved ${topN} matched workers from healthy zones in 1 click (est. recovers ~${Math.max(2, Math.round(recoveryDaysBehind * 0.6))} days)`;
+      logAction(msg, "ok");
+      showToast(`★ Recovered ${recoveryZone.name} · moved ${topN} workers · ~${Math.max(2, Math.round(recoveryDaysBehind * 0.6))} days saved`);
+    }
+
+    return (
+      <div className="animate-in fade-in duration-500 relative">
+        {toast && (
+          <div className={clsx(
+            "fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-lg border font-bold text-sm max-w-sm",
+            toast.tone === "danger" ? "bg-red-50 text-red-700 border-red-200" :
+            toast.tone === "warn"   ? "bg-orange-50 text-orange-700 border-orange-200" :
+            toast.tone === "info"   ? "bg-[#f1f0eb] text-[#1E3932] border-[#d4e9e2]" :
+                                      "bg-[#d4e9e2] text-[#00754A] border-[#00754A]/30"
+          )}>{toast.msg}</div>
+        )}
+
+        <div className="mb-6 flex justify-between items-end gap-3 flex-wrap">
+          <div>
+            <h1 className="text-3xl font-bold text-[#006241]">Control Center</h1>
+            <p className="text-[#1E3932] opacity-70 mt-1 font-medium">Tap a task → see who's best for it → assign in one click. The AI ranks the workers for you.</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleResetAll} className="btn-ghost"><RotateCcw className="w-4 h-4" /> Reset</button>
+            <button onClick={handleAutoOptimize} className="btn-primary"><Sparkles className="w-4 h-4" /> Auto-Optimize</button>
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <div className="flex gap-2 bg-white p-1.5 rounded-lg border border-[#d4e9e2] w-max">
+            <button onClick={()=>setMode("task")} className={clsx("px-4 py-1.5 text-sm font-bold rounded", mode==="task"?"bg-[#00754A] text-white":"text-[#1E3932] hover:bg-[#f1f0eb]")}>Task Allocation</button>
+            <button onClick={()=>setMode("rotation")} className={clsx("px-4 py-1.5 text-sm font-bold rounded", mode==="rotation"?"bg-[#00754A] text-white":"text-[#1E3932] hover:bg-[#f1f0eb]")}>Shift Rotation</button>
+            <button onClick={()=>setMode("recovery")} className={clsx("px-4 py-1.5 text-sm font-bold rounded", mode==="recovery"?"bg-[#00754A] text-white":"text-[#1E3932] hover:bg-[#f1f0eb]")}>Delay Recovery</button>
+          </div>
+          <p className="text-xs text-[#1E3932] opacity-70 mt-2 ml-1">
+            {mode === "task" && "Match the right workers to upcoming construction tasks."}
+            {mode === "rotation" && "View the 7-day shift schedule and send tired crews to rest."}
+            {mode === "recovery" && "Pull fresh workers from healthy zones into delayed ones."}
+          </p>
+        </div>
+
+        {mode === "task" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div className="card p-4 lg:col-span-4 max-h-[600px] overflow-auto custom-scrollbar">
+              <div className="mb-3">
+                <h3 className="text-xs font-bold text-[#006241] uppercase tracking-wider flex items-center gap-2"><ClipboardList className="w-3 h-3"/> Task Pipeline</h3>
+                <p className="text-[11px] text-[#1E3932] opacity-70 mt-1">Tap a task to see the best workers for it · sorted by priority</p>
+              </div>
+              <ul className="space-y-2">
+                {TASKS.map(t => {
+                  const pTone = t.priority === "critical" ? "danger" : t.priority === "high" ? "warn" : t.priority === "medium" ? "info" : "muted";
+                  const pLabel = t.priority.charAt(0).toUpperCase() + t.priority.slice(1);
+                  const dueLabel = t.deadlineDays <= 1 ? "Due tomorrow" : `Due in ${t.deadlineDays} days`;
+                  const dueColor = t.deadlineDays <= 3 ? "text-red-600" : t.deadlineDays <= 7 ? "text-orange-600" : "text-gray-500";
+                  const assignedCount = Object.values(overrides).filter(o => o.assignedTo === t.id).length;
+                  return (
+                    <li key={t.id} onClick={()=>setTaskId(t.id)} className={clsx("p-3 rounded-xl border cursor-pointer transition-colors", taskId===t.id?"border-[#00754A] bg-[#d4e9e2]/30":"border-[#d4e9e2] hover:bg-[#f1f0eb]")}>
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="font-bold text-[#1E3932]">{t.title}</div>
+                        {assignedCount > 0 && <Pill tone="ok" dot>{assignedCount}/{t.needed} assigned</Pill>}
+                      </div>
+                      <div className="text-[11px] text-gray-500 mt-1">Needs {t.needed} {t.skill}{t.needed > 1 ? "s" : ""} in {zoneName(t.zoneId)}</div>
+                      <div className="mt-2 flex justify-between items-center">
+                        <Pill tone={pTone} dot>{pLabel}</Pill>
+                        <span className={clsx("text-[10px] font-bold", dueColor)}>{dueLabel}</span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+
+            <div className="card p-5 lg:col-span-8">
+              <div className="flex justify-between items-start gap-3 mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-[#006241] uppercase tracking-wider flex items-center gap-2"><Sparkles className="w-3 h-3"/> Best-Fit Crew · AI Picked</h3>
+                  <p className="text-[11px] text-[#1E3932] opacity-70 mt-1">Top {task.needed} workers for "{task.title}" · ranked by skill · valid licence · low fatigue · already in/near {zoneName(task.zoneId)}</p>
+                </div>
+                {result.shortBy > 0 ? <Pill tone="danger" dot>Short by {result.shortBy} worker{result.shortBy > 1 ? "s" : ""}</Pill> : <Pill tone="ok" dot>Fully staffed</Pill>}
+              </div>
+
+              {tiredInCrew.length > 0 && (
+                <div className="mb-3 flex items-start gap-2 px-3 py-2 rounded-lg bg-orange-50 border border-orange-200 text-orange-700">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <div className="text-xs font-bold">
+                    {tiredInCrew.length} worker{tiredInCrew.length > 1 ? "s are" : " is"} tired (fatigue ≥ 70 or 7+ days on site).
+                    Click <span className="underline">Auto-Rotate Tired</span> below to swap them for fresh ones.
+                  </div>
+                </div>
+              )}
+
+              <div className="border border-[#d4e9e2] rounded-xl overflow-hidden">
+                <table className="table-base">
+                  <thead>
+                    <tr>
+                      <th>Worker</th>
+                      <th>Currently in</th>
+                      <th title="0 = fresh · 100 = exhausted (lower is better)">Fatigue · 0-100</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayCrew.map((w) => {
+                      const isTired = w.fatigue >= 70 || w.daysWorked >= 7;
+                      return (
+                        <tr key={w.id} className={isTired ? "bg-orange-50/40" : ""}>
+                          <td>
+                            <div className="font-bold text-[#1E3932] flex items-center gap-2">
+                              {w.name}
+                              {isTired && <Pill tone="warn" dot>Tired</Pill>}
+                            </div>
+                            <div className="text-[10px] text-gray-500">{w.skill} · {w.yearsExperience}y exp. · {w.daysWorked}d on site</div>
+                          </td>
+                          <td className="text-xs">
+                            <span className="font-mono font-bold text-[#006241]">{w.zone}</span>
+                            <span className="text-gray-400 ml-1">{zoneName(w.zone)}</span>
+                          </td>
+                          <td><FatigueBar value={w.fatigue} /></td>
+                          <td><Pill tone="ok" dot>License valid</Pill></td>
+                        </tr>
+                      );
+                    })}
+                    {displayCrew.length === 0 && <tr><td colSpan="4" className="text-center py-8 text-gray-400">No matching workers available — all are already assigned. Click "Reset" up top to restore the roster.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between pt-4 border-t border-[#f1f0eb]">
+                <p className="text-[11px] text-[#1E3932] opacity-70 leading-relaxed">
+                  <span className="font-bold text-[#006241]">Auto-Rotate Tired</span> swaps any worker over 70 fatigue for a rested replacement.
+                  <br/><span className="font-bold text-[#006241]">Assign Crew</span> locks these workers to this task today.
+                </p>
+                <div className="flex gap-3 shrink-0">
+                  <button onClick={handleAutoRotate} className="btn-ghost"><RefreshCw className="w-4 h-4"/> Auto-Rotate Tired{tiredInCrew.length > 0 ? ` (${tiredInCrew.length})` : ""}</button>
+                  <button onClick={handleAssignCrew} className="btn-primary"><CheckCircle2 className="w-4 h-4" /> Assign Crew</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {mode === "rotation" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div className="card p-5 lg:col-span-12">
+              <div className="flex justify-between items-start gap-3 mb-4 flex-wrap">
+                <div>
+                  <h3 className="text-sm font-bold text-[#006241] uppercase tracking-wider flex items-center gap-2"><CalendarRange className="w-3 h-3"/> 7-Day Shift Schedule</h3>
+                  <p className="text-[11px] text-[#1E3932] opacity-70 mt-1">Day (D) · Night (N) · Off (O) — workers flagged "Tired" should be sent to rest before they break safety limits</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-3 text-[10px] font-bold">
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#d4e9e2] inline-block"/><span className="text-[#006241]">Day</span></span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-[#1E3932] inline-block"/><span className="text-[#1E3932]">Night</span></span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-200 inline-block"/><span className="text-gray-500">Off</span></span>
+                  </div>
+                  <button onClick={handleRestAllTired} className="btn-ghost !py-1.5 !px-3 text-xs"><BedDouble className="w-3 h-3"/> Rest all tired ({tiredTotal})</button>
+                </div>
+              </div>
+
+              <div className="border border-[#d4e9e2] rounded-xl overflow-hidden">
+                <table className="table-base">
+                  <thead>
+                    <tr>
+                      <th>Worker</th>
+                      <th>Skill</th>
+                      <th>Status</th>
+                      {["D+0","D+1","D+2","D+3","D+4","D+5","D+6"].map(d => <th key={d} className="text-center">{d}</th>)}
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rotationSample.map(({ worker: w, plan, tired }) => (
+                      <tr key={w.id} className={tired ? "bg-orange-50/40" : ""}>
+                        <td>
+                          <div className="font-bold text-[#1E3932] flex items-center gap-2">
+                            {w.name}
+                            {tired && <Pill tone="warn" dot>Tired</Pill>}
+                          </div>
+                          <div className="text-[10px] text-gray-500">{w.daysWorked}d on site · fatigue {w.fatigue}</div>
+                        </td>
+                        <td className="text-xs text-[#006241] font-bold">{w.skill}</td>
+                        <td className="text-xs">
+                          {w.shift === "off"   ? <Pill tone="muted" dot>Resting</Pill> :
+                           w.shift === "night" ? <Pill tone="info" dot>Night</Pill> :
+                                                 <Pill tone="ok" dot>Day</Pill>}
+                        </td>
+                        {plan.map((s, i) => (
+                          <td key={i} className="text-center">
+                            <span className={clsx("inline-block w-6 h-6 leading-6 rounded text-[10px] font-black",
+                              s === "D" ? "bg-[#d4e9e2] text-[#006241]" :
+                              s === "N" ? "bg-[#1E3932] text-white" :
+                                          "bg-gray-200 text-gray-500")}>{s}</span>
+                          </td>
+                        ))}
+                        <td>
+                          {tired && (
+                            <button onClick={() => handleSendToRest(w.id)} className="btn-ghost !px-2 !py-1 text-[10px]"><BedDouble className="w-3 h-3"/> Send to rest</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {mode === "recovery" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div className="card p-4 lg:col-span-4 max-h-[600px] overflow-auto custom-scrollbar">
+              <div className="mb-3">
+                <h3 className="text-xs font-bold text-[#006241] uppercase tracking-wider flex items-center gap-2"><AlertTriangle className="w-3 h-3"/> Behind Schedule</h3>
+                <p className="text-[11px] text-[#1E3932] opacity-70 mt-1">Pick a zone to see which workers can rescue it</p>
+              </div>
+              <ul className="space-y-2">
+                {delayedZones.map(z => {
+                  const zSkills = zoneSkillsNeeded(z.id);
+                  const zDays = zoneDaysBehind(z);
+                  return (
+                    <li key={z.id} onClick={() => setRecoveryZoneId(z.id)} className={clsx("p-3 rounded-xl border cursor-pointer transition-colors",
+                      recoveryZoneId === z.id ? "border-[#00754A] bg-[#d4e9e2]/30" : "border-[#d4e9e2] hover:bg-[#f1f0eb]")}>
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1">
+                          <div className="font-bold text-[#1E3932]">{z.name}</div>
+                          <div className="text-[11px] text-gray-500 mt-1">{z.discipline} · {z.progress}% complete</div>
+                        </div>
+                        <Pill tone={z.status === "delayed" ? "danger" : "warn"} dot>{z.status === "delayed" ? "Delayed" : "At Risk"}</Pill>
+                      </div>
+                      <div className="mt-2 flex justify-between items-center text-[10px] gap-2">
+                        <span className={clsx("font-bold", z.status === "delayed" ? "text-red-600" : "text-orange-600")}>~{zDays} days behind</span>
+                        <span className="text-gray-400 truncate">Needs: {zSkills.slice(0, 2).join(", ")}{zSkills.length > 2 ? ` +${zSkills.length - 2}` : ""}</span>
+                      </div>
+                    </li>
+                  );
+                })}
+                {delayedZones.length === 0 && <li className="text-xs text-gray-400 text-center py-4">No delayed zones — all on track!</li>}
+              </ul>
+            </div>
+
+            <div className="card p-5 lg:col-span-8">
+              <div className="flex justify-between items-start gap-3 mb-4 flex-wrap">
+                <div className="flex-1 min-w-[260px]">
+                  <h3 className="text-sm font-bold text-[#006241] uppercase tracking-wider flex items-center gap-2"><ArrowRight className="w-3 h-3"/> Recover {zoneName(recoveryZoneId)}</h3>
+                  <p className="text-[11px] text-[#1E3932] opacity-70 mt-1">
+                    Pulling <span className="font-bold text-[#006241]">{recoveryZone ? recoveryZone.discipline : ""}</span> workers from completed/on-track zones — ranked by skill match, source zone progress, freshness and experience
+                  </p>
+                  <div className="mt-2 flex gap-2 flex-wrap text-[10px] font-bold">
+                    <span className="px-2 py-1 rounded bg-red-50 text-red-700 border border-red-200">~{recoveryDaysBehind} days behind</span>
+                    <span className="px-2 py-1 rounded bg-[#f1f0eb] text-[#1E3932] border border-[#d4e9e2]">Needs: {recoverySkills.join(", ") || "—"}</span>
+                    <span className="px-2 py-1 rounded bg-[#d4e9e2] text-[#00754A] border border-[#00754A]/20">{recoveryCandidates.length} candidate{recoveryCandidates.length !== 1 ? "s" : ""} ready</span>
+                  </div>
+                </div>
+                <button onClick={handleAutoRecover} className="btn-primary"><Sparkles className="w-4 h-4"/> Auto-Recover Top 5</button>
+              </div>
+
+              <div className="border border-[#d4e9e2] rounded-xl overflow-hidden">
+                <table className="table-base">
+                  <thead>
+                    <tr><th>Worker</th><th>Match</th><th>From zone</th><th>Energy</th><th></th></tr>
+                  </thead>
+                  <tbody>
+                    {recoveryCandidates.map(w => (
+                      <tr key={w.id}>
+                        <td>
+                          <div className="font-bold text-[#1E3932]">{w.name}</div>
+                          <div className="text-[10px] text-gray-500">{w.skill} · {w.yearsExperience}y exp.</div>
+                        </td>
+                        <td>
+                          {w.matchKind === "perfect" ? <Pill tone="ok" dot>Skill match</Pill> : <Pill tone="info" dot>Discipline match</Pill>}
+                        </td>
+                        <td className="text-xs">
+                          <div>
+                            <span className="font-mono font-bold text-[#006241]">{w.sourceZone.id}</span>
+                            <span className="text-[#1E3932] ml-1 font-medium">{w.sourceZone.name}</span>
+                          </div>
+                          <div className="text-[9px] text-gray-400 mt-0.5">
+                            {w.sourceZone.status === "complete" ? "✓ Complete · ready to release" : `${w.sourceZone.progress}% · on track`}
+                          </div>
+                        </td>
+                        <td>
+                          {w.fatigue < 15 ? <Pill tone="ok" dot>Fresh</Pill> :
+                           w.fatigue < 40 ? <Pill tone="info" dot>Rested</Pill> :
+                                            <FatigueBar value={w.fatigue} />}
+                        </td>
+                        <td>
+                          <button onClick={() => handleReallocate(w.id)} className="btn-primary !px-3 !py-1 text-[11px]"><ArrowRight className="w-3 h-3"/> Move</button>
+                        </td>
+                      </tr>
+                    ))}
+                    {recoveryCandidates.length === 0 && <tr><td colSpan="5" className="text-center py-8 text-gray-400">No matching workers available — all suitable workers are already assigned. Click "Reset" up top to restore the roster.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activityLog.length > 0 && (
+          <div className="card p-4 mt-4">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-xs font-bold text-[#006241] uppercase tracking-wider flex items-center gap-2"><Activity className="w-3 h-3"/> Recent Actions · Live Demo Log</h3>
+              <span className="text-[10px] text-gray-400 font-bold">{activityLog.length} action{activityLog.length > 1 ? "s" : ""}</span>
+            </div>
+            <ul className="space-y-1 max-h-48 overflow-auto">
+              {activityLog.map(a => (
+                <li key={a.id} className="text-xs flex gap-3 items-center py-1 border-b border-[#f1f0eb] last:border-0">
+                  <span className="text-gray-400 font-mono text-[10px]">{a.time}</span>
+                  <span className={clsx("inline-block w-1.5 h-1.5 rounded-full shrink-0",
+                    a.tone === "warn"   ? "bg-orange-500" :
+                    a.tone === "danger" ? "bg-red-500" :
+                                          "bg-[#00754A]")}/>
+                  <span className="text-[#1E3932] font-medium">{a.message}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ===================== LIVE RADIATION FEED =====================
+  function LiveRadiationFeed() {
+    const seed = React.useRef(mulberry32(99991));
+    const [readings, setReadings] = React.useState(() => [
+      { zone:"RB", worker:"A. Seitkali",   id:"W-0041", dose:0.38, acc:14.2 },
+      { zone:"SF", worker:"D. Volkov",     id:"W-1892", dose:1.54, acc:38.7 },
+      { zone:"TH", worker:"B. Nurmagambet",id:"W-0317", dose:0.07, acc:6.1  },
+      { zone:"CR", worker:"Y. Kim",        id:"W-2201", dose:0.02, acc:2.9  },
+      { zone:"RB", worker:"M. Bekova",     id:"W-0088", dose:0.41, acc:17.4 },
+      { zone:"SF", worker:"S. Petrov",     id:"W-1105", dose:1.62, acc:41.1 },
+    ]);
+    const [tick, setTick] = React.useState(0);
+    React.useEffect(() => {
+      const id = setInterval(() => {
+        setReadings(prev => prev.map(r => ({
+          ...r,
+          dose: Math.max(0, +(r.dose + (seed.current() - 0.5) * 0.06).toFixed(2)),
+        })));
+        setTick(t => t + 1);
+      }, 2000);
+      return () => clearInterval(id);
+    }, []);
+    return (
+      <div className="card p-5">
+        <h3 className="text-sm font-bold text-[#006241] uppercase tracking-wider mb-1 border-b border-[#f1f0eb] pb-3 flex items-center gap-2">
+          ☢ Live Radiation Feed
+          <span className="flex items-center gap-1 text-[9px] font-mono text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full ml-auto">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block"></span>
+            LIVE · updated {tick > 0 ? `${tick * 2}s ago` : "now"}
+          </span>
+        </h3>
+        <p className="text-[10px] font-mono text-[#1E3932] opacity-50 mb-3">Simulated dosimeter API · ANSI N13.11 · readings in mSv/wk · acc = accumulated this year (mSv)</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-[10px] font-bold uppercase tracking-wider text-[#1E3932] opacity-60 border-b border-[#f1f0eb]">
+                <th className="text-left pb-2">Worker</th><th className="text-left pb-2">ID</th><th className="text-left pb-2">Zone</th>
+                <th className="text-right pb-2">mSv/wk</th><th className="text-right pb-2">Acc. mSv/yr</th><th className="text-right pb-2">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {readings.map(r => {
+                const warn = r.dose > 1.5 || r.acc > 30;
+                return (
+                  <tr key={r.id} className={`border-b border-[#f1f0eb] ${warn ? "bg-orange-50" : ""}`}>
+                    <td className="py-2 font-bold text-[#1E3932]">{r.worker}</td>
+                    <td className="py-2 font-mono text-[#1E3932] opacity-60">{r.id}</td>
+                    <td className="py-2"><span className="bg-[#d4e9e2] text-[#006241] text-[9px] font-black px-1.5 py-0.5 rounded">{r.zone}</span></td>
+                    <td className={`py-2 text-right font-mono font-bold ${warn ? "text-orange-500" : "text-[#006241]"}`}>{r.dose.toFixed(2)}</td>
+                    <td className={`py-2 text-right font-mono ${r.acc > 30 ? "text-orange-500 font-bold" : "text-[#1E3932] opacity-70"}`}>{r.acc.toFixed(1)}</td>
+                    <td className="py-2 text-right">
+                      <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${warn ? "bg-orange-100 text-orange-600" : "bg-green-100 text-green-700"}`}>{warn ? "MONITOR" : "OK"}</span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-[10px] font-mono text-[#1E3932] opacity-40 mt-2">Annual occupational limit: 20 mSv/yr (IAEA GSR Part 3) · Emergency limit: 100 mSv/yr</p>
+      </div>
+    );
+  }
+
+  // ===================== HSE PANEL =====================
+  function HSEPanel() {
+    const incidents = [
+      { id: "INC-041", date: "18 Dec 2036", type: "Near-Miss",     zone: "RB", desc: "Unsecured scaffold board at elevation +14m. No injury.", status: "Closed",  severity: "medium" },
+      { id: "INC-040", date: "02 Dec 2036", type: "First Aid",     zone: "TH", desc: "Minor laceration during pipe spool fit-up. Treated on site.", status: "Closed",  severity: "low" },
+      { id: "INC-039", date: "14 Nov 2036", type: "Near-Miss",     zone: "SY", desc: "Crane swing radius encroachment — bystander evacuated.", status: "Closed",  severity: "medium" },
+      { id: "INC-038", date: "29 Oct 2036", type: "Environmental", zone: "CT", desc: "Minor coolant spill — 12 L contained, Lake Balkhash unaffected.", status: "Closed",  severity: "medium" },
+    ];
+    const radiationZones = [
+      { zone: "Reactor Building (RB)", dose: 0.42, limit: 2.0, unit: "mSv/wk", status: "ok" },
+      { zone: "Turbine Hall (TH)",     dose: 0.08, limit: 2.0, unit: "mSv/wk", status: "ok" },
+      { zone: "Control Room (CR)",     dose: 0.02, limit: 2.0, unit: "mSv/wk", status: "ok" },
+      { zone: "Spent Fuel Store (SF)", dose: 1.61, limit: 2.0, unit: "mSv/wk", status: "warn" },
+    ];
+    const permits = [
+      { id: "PTW-2208", title: "Hot Work — Primary Loop Welding",   zone: "TH", expires: "22 Dec 2036", active: true },
+      { id: "PTW-2207", title: "Confined Space — Cooling Tower",    zone: "CT", expires: "21 Dec 2036", active: true },
+      { id: "PTW-2206", title: "Crane Lift — Steam Generator",      zone: "TH", expires: "20 Dec 2036", active: false },
+      { id: "PTW-2205", title: "Excavation — Unit 2 Foundation",    zone: "RB", expires: "28 Dec 2036", active: true },
+    ];
+    const sevColor = { low: "text-green-600 bg-green-50 border-green-100", medium: "text-orange-600 bg-orange-50 border-orange-100", high: "text-red-600 bg-red-50 border-red-100" };
+    return (
+      <div className="animate-in fade-in duration-500 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-[#006241]">Health, Safety &amp; Environment</h1>
+          <p className="text-[#1E3932] opacity-70 mt-1 font-medium">IAEA NS-R-3 · Kazakhstan Labour Code · Radiation protection monitoring</p>
+        </div>
+
+        {/* KPI row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="card p-5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#006241] mb-1">Days Without LTI</p>
+            <p className="text-4xl font-black text-[#1E3932]">147</p>
+            <p className="text-[11px] text-[#006241] font-semibold mt-1">Lost-Time Incident free</p>
+          </div>
+          <div className="card p-5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-1">Open Incidents</p>
+            <p className="text-4xl font-black text-orange-500">0</p>
+            <p className="text-[11px] text-[#1E3932] opacity-60 font-semibold mt-1">All 41 incidents closed</p>
+          </div>
+          <div className="card p-5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#006241] mb-1">PPE Compliance</p>
+            <p className="text-4xl font-black text-[#006241]">97.4%</p>
+            <p className="text-[11px] text-[#1E3932] opacity-60 font-semibold mt-1">Last site walkdown</p>
+          </div>
+          <div className="card p-5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#006241] mb-1">Active PTW</p>
+            <p className="text-4xl font-black text-[#1E3932]">3</p>
+            <p className="text-[11px] text-[#1E3932] opacity-60 font-semibold mt-1">Permits to Work</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Radiation monitoring */}
+          <div className="card p-5">
+            <h3 className="text-sm font-bold text-[#006241] uppercase tracking-wider mb-4 border-b border-[#f1f0eb] pb-3">☢ Radiation Dose Monitoring</h3>
+            <div className="space-y-3">
+              {radiationZones.map(z => (
+                <div key={z.zone}>
+                  <div className="flex justify-between text-xs font-bold mb-1">
+                    <span className="text-[#1E3932]">{z.zone}</span>
+                    <span className={z.status === "warn" ? "text-orange-500" : "text-[#006241]"}>{z.dose} / {z.limit} {z.unit}</span>
+                  </div>
+                  <div className="w-full bg-[#f1f0eb] rounded-full h-2 overflow-hidden">
+                    <div className={`h-full rounded-full ${z.status === "warn" ? "bg-orange-500" : "bg-[#00754A]"}`} style={{width: `${(z.dose/z.limit)*100}%`}}></div>
+                  </div>
+                </div>
+              ))}
+              <p className="text-[10px] font-mono text-[#1E3932] opacity-50 pt-1">Limit per IAEA Basic Safety Standards GSR Part 3 · 20 mSv/yr occupational</p>
+            </div>
+          </div>
+
+          {/* Permits to Work */}
+          <div className="card p-5">
+            <h3 className="text-sm font-bold text-[#006241] uppercase tracking-wider mb-4 border-b border-[#f1f0eb] pb-3">📋 Permits to Work (PTW)</h3>
+            <div className="space-y-2">
+              {permits.map(p => (
+                <div key={p.id} className={`flex items-center justify-between p-3 rounded-lg border ${p.active ? "bg-[#f1f0eb]/60 border-[#d4e9e2]" : "bg-gray-50 border-gray-100 opacity-50"}`}>
+                  <div>
+                    <p className="text-xs font-bold text-[#1E3932]">{p.title}</p>
+                    <p className="text-[10px] font-mono text-[#1E3932] opacity-60">{p.id} · Zone: {p.zone} · Exp: {p.expires}</p>
+                  </div>
+                  <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full ${p.active ? "bg-[#00754A] text-white" : "bg-gray-200 text-gray-500"}`}>{p.active ? "ACTIVE" : "CLOSED"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Incident log */}
+        <div className="card p-5">
+          <h3 className="text-sm font-bold text-[#006241] uppercase tracking-wider mb-4 border-b border-[#f1f0eb] pb-3">🚨 Incident Register (last 4)</h3>
+          <div className="space-y-2">
+            {incidents.map(inc => (
+              <div key={inc.id} className={`flex items-start gap-4 p-3 rounded-lg border ${sevColor[inc.severity]}`}>
+                <div className="shrink-0 text-center">
+                  <p className="text-[9px] font-black uppercase tracking-wider">{inc.type}</p>
+                  <p className="text-[10px] font-mono opacity-70">{inc.id}</p>
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-bold">{inc.desc}</p>
+                  <p className="text-[10px] font-mono opacity-60 mt-0.5">{inc.date} · Zone: {inc.zone}</p>
+                </div>
+                <span className="text-[9px] font-black uppercase px-2 py-1 rounded-full bg-white border shrink-0">{inc.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Live radiation API simulation + individual worker doses */}
+        <LiveRadiationFeed />
+
+        {/* IAEA Inspection tracker */}
+        <div className="card p-5">
+          <h3 className="text-sm font-bold text-[#006241] uppercase tracking-wider mb-4 border-b border-[#f1f0eb] pb-3">🏛 IAEA Inspection Schedule</h3>
+          <div className="space-y-2">
+            {[
+              { id:"IAEA-2036-04", title:"Radiation Protection Review",       date:"08 Nov 2036", status:"passed",   finding:"0 findings" },
+              { id:"IAEA-2036-03", title:"Commissioning Safety Assessment",   date:"14 Sep 2036", status:"passed",   finding:"2 minor obs." },
+              { id:"IAEA-2036-02", title:"Nuclear Safety Infrastructure",     date:"22 Jun 2036", status:"passed",   finding:"0 findings" },
+              { id:"IAEA-2037-01", title:"Pre-Fuel-Load Safety Review",       date:"15 Feb 2037", status:"upcoming", finding:"Scheduled" },
+              { id:"IAEA-2037-02", title:"Operational Readiness Review (ORR)",date:"01 Jun 2037", status:"upcoming", finding:"Scheduled" },
+            ].map(ins => (
+              <div key={ins.id} className={`flex items-center justify-between p-3 rounded-lg border ${ins.status==="upcoming" ? "bg-blue-50 border-blue-100" : "bg-[#f1f0eb]/60 border-[#d4e9e2]"}`}>
+                <div>
+                  <p className="text-xs font-bold text-[#1E3932]">{ins.title}</p>
+                  <p className="text-[10px] font-mono text-[#1E3932] opacity-60">{ins.id} · {ins.date}</p>
+                </div>
+                <div className="text-right">
+                  <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full ${ins.status==="upcoming" ? "bg-blue-500 text-white" : "bg-[#00754A] text-white"}`}>{ins.status}</span>
+                  <p className="text-[10px] font-mono opacity-60 mt-1">{ins.finding}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Environmental monitoring */}
+        <div className="card p-5">
+          <h3 className="text-sm font-bold text-[#006241] uppercase tracking-wider mb-4 border-b border-[#f1f0eb] pb-3">🌊 Lake Balkhash Environmental Monitoring</h3>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+            {[
+              { label:"Water Temp",     value:"12.4°C",  limit:"≤18°C",   ok:true  },
+              { label:"pH Level",       value:"7.8",     limit:"6.5–8.5", ok:true  },
+              { label:"Turbidity",      value:"3.2 NTU", limit:"≤5 NTU",  ok:true  },
+              { label:"Tritium (HTO)",  value:"0.8 Bq/L",limit:"≤100 Bq/L",ok:true},
+            ].map(m => (
+              <div key={m.label} className={`rounded-xl p-3 border text-center ${m.ok ? "bg-[#d4e9e2]/30 border-[#d4e9e2]" : "bg-red-50 border-red-100"}`}>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-[#006241] mb-1">{m.label}</p>
+                <p className="text-lg font-black text-[#1E3932]">{m.value}</p>
+                <p className="text-[9px] font-mono text-[#1E3932] opacity-50">limit {m.limit}</p>
+                <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full mt-1 inline-block ${m.ok ? "bg-[#00754A] text-white" : "bg-red-500 text-white"}`}>{m.ok?"WITHIN NORM":"ALERT"}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] font-mono text-[#1E3932] opacity-50">Monitoring station KZ-ENV-04 · 1.2 km north of water intake · updated hourly · RK Ecology Ministry standard</p>
+        </div>
+
+        {/* HSE Training compliance */}
+        <div className="card p-5">
+          <h3 className="text-sm font-bold text-[#006241] uppercase tracking-wider mb-4 border-b border-[#f1f0eb] pb-3">📚 HSE Training Compliance by Discipline</h3>
+          <div className="space-y-3">
+            {[
+              { disc:"I&C",        total:583,  trained:571, refreshDue:12 },
+              { disc:"Mechanical", total:1820, trained:1764,refreshDue:56 },
+              { disc:"Civil",      total:2100, trained:2058,refreshDue:42 },
+              { disc:"Electrical", total:980,  trained:952, refreshDue:28 },
+              { disc:"Safety",     total:517,  trained:517, refreshDue:0  },
+            ].map(d => {
+              const pct = Math.round(d.trained/d.total*100);
+              return (
+                <div key={d.disc}>
+                  <div className="flex justify-between text-xs font-bold mb-1">
+                    <span className="text-[#1E3932]">{d.disc} <span className="font-normal opacity-50">({d.total} workers)</span></span>
+                    <span className={pct>=98?"text-[#006241]":pct>=95?"text-orange-500":"text-red-500"}>{pct}% · {d.refreshDue > 0 ? `${d.refreshDue} refresh due` : "fully compliant"}</span>
+                  </div>
+                  <div className="w-full bg-[#f1f0eb] rounded-full h-2 overflow-hidden">
+                    <div className={`h-full rounded-full ${pct>=98?"bg-[#00754A]":pct>=95?"bg-orange-500":"bg-red-500"}`} style={{width:`${pct}%`}}></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[10px] font-mono text-[#1E3932] opacity-50 mt-3">Mandatory: Radiation Awareness · Fire Safety · Confined Space · Working at Heights · First Aid · refreshed every 12 months</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ===================== ROOT APP =====================
+  function App() {
+    const { route } = useContext(RouterCtx);
+    return (
+      <div className="p-2 h-full flex flex-col">
+        <div className="flex items-center gap-2 mb-6 bg-white p-1.5 rounded-full shadow-sm w-max border border-[#d4e9e2] self-center">
+          <Link href="/dash"    className={clsx("px-6 py-2 text-sm rounded-full font-bold transition-all", route.page === 'dash'    ? "bg-[#00754A] text-white shadow-md" : "text-[#1E3932] hover:bg-[#f1f0eb]")}>Overview</Link>
+          <Link href="/control" className={clsx("px-6 py-2 text-sm rounded-full font-bold transition-all", route.page === 'control' ? "bg-[#00754A] text-white shadow-md" : "text-[#1E3932] hover:bg-[#f1f0eb]")}>Control Center</Link>
+          <Link href="/hse"     className={clsx("px-6 py-2 text-sm rounded-full font-bold transition-all", route.page === 'hse'     ? "bg-red-500 text-white shadow-md"    : "text-[#1E3932] hover:bg-[#f1f0eb]")}>HSE</Link>
+        </div>
+        {route.page === 'dash' ? <Dashboard /> : route.page === 'hse' ? <HSEPanel /> : <ControlCenter />}
+      </div>
+    );
+  }
+
+  const root = ReactDOM.createRoot(document.getElementById("hr-root"));
+  root.render(<RouterProvider><App /></RouterProvider>);
+</script>
+{% endverbatim %}
+{% endblock %}

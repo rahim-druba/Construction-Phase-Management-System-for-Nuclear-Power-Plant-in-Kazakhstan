@@ -1,0 +1,1044 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+    /* 1. Убираем большие отступы у main */
+    main { padding: 1rem !important; }
+
+    /* 2. Снимаем лимит ширины */
+    main .max-w-7xl { max-width: 100% !important; margin: 0 !important; }
+
+/* Eco-Corporate Design System Variables */
+:root {
+  --bg: #f1f0eb;
+  --surface: #ffffff;
+  --surface-hover: #f8fafc;
+  --border: #d4e9e2;
+  --text-main: #1E3932;
+  --text-muted: #1E393280;
+  --accent: #00754A;
+  --accent-dark: #006241;
+  --green: #00754A;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --cyan: #0ea5e9;
+  --purple: #8b5cf6;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Inter', sans-serif;
+}
+
+.logistics-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 2rem);
+  font-family: var(--font-sans);
+  color: var(--text-main);
+  background: var(--bg);
+}
+
+/* ── MODULE HEADER ── */
+.module-header {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 20px; margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02); flex-shrink: 0;
+}
+.mh-title { font-size: 18px; font-weight: 700; color: var(--accent-dark); }
+.mh-subtitle { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+.mh-stats { display: flex; gap: 12px; align-items: center; }
+.mh-chip {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text-main);
+}
+.mh-chip.active { background: var(--border); color: var(--accent-dark); border-color: var(--accent); }
+
+/* ── LAYOUT ── */
+.l-grid { display: grid; grid-template-columns: 380px 1fr; gap: 16px; flex: 1; min-height: 0; }
+.l-sidebar { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+.l-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* ── TABS ── */
+.tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--bg); }
+.tab {
+  flex: 1; padding: 12px 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+  text-align: center; color: var(--text-muted); cursor: pointer;
+  border-bottom: 2px solid transparent; transition: all .2s; text-transform: uppercase;
+}
+.tab:hover { color: var(--text-main); background: white; }
+.tab.active { color: var(--accent-dark); border-bottom-color: var(--accent); background: white; }
+.tab-pane { display: none; flex: 1; overflow-y: auto; padding: 16px; }
+.tab-pane.active { display: block; }
+.tab-pane::-webkit-scrollbar { width: 4px; }
+.tab-pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ── METRICS ── */
+.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.metric { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.metric-lbl { font-size: 9px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+.metric-val { font-size: 24px; font-weight: 700; font-family: var(--font-mono); line-height: 1; color: var(--text-main); }
+.metric-sub { font-size: 10px; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
+
+/* ── SECTION LABEL ── */
+.sec-label { font-size: 10px; font-weight: 700; color: var(--accent-dark); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+/* ── MATERIAL CARD ── */
+.mat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px; margin-bottom: 8px;
+  cursor: pointer; transition: all .2s;
+}
+.mat-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(0,117,74,0.08); }
+.mat-card.critical { border-left: 4px solid var(--red); }
+.mat-card.warning { border-left: 4px solid var(--amber); }
+.mat-card.transit { border-left: 4px solid var(--cyan); }
+.mat-card.ok { border-left: 4px solid var(--green); }
+.mat-card.selected { border-color: var(--accent); background: var(--border); }
+
+.mat-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.mat-name { font-size: 13px; font-weight: 700; color: var(--text-main); }
+.mat-meta { font-size: 10px; color: var(--text-muted); font-weight: 500; margin-top: 2px; }
+.badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); text-transform: uppercase; }
+.badge-ok    { background: rgba(0,117,74,.1); color: var(--green); }
+.badge-warn  { background: rgba(245,158,11,.1); color: var(--amber); }
+.badge-crit  { background: rgba(239,68,68,.1); color: var(--red); }
+.badge-cyan  { background: rgba(14,165,233,.1); color: var(--cyan); }
+.badge-gray  { background: var(--bg); border: 1px solid var(--border); color: var(--text-muted); }
+
+.bar-track { background: var(--bg); border-radius: 4px; height: 6px; margin-bottom: 8px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width .5s ease; }
+.mat-foot { display: flex; justify-content: space-between; align-items: center; }
+.mat-pct { font-family: var(--font-mono); font-size: 13px; font-weight: 700; }
+.mat-days { font-size: 10px; color: var(--text-muted); font-weight: 500; font-family: var(--font-mono); }
+
+/* ── SUPPLIER CARD ── */
+.sup-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.sup-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.sup-name { font-size: 13px; font-weight: 700; }
+.sup-city { font-size: 10px; color: var(--text-muted); font-weight: 500; margin-top: 2px; }
+.sup-score { font-family: var(--font-mono); font-size: 20px; font-weight: 700; }
+.sup-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); padding: 3px 0; font-weight: 500; }
+.sup-row span:last-child { color: var(--text-main); font-family: var(--font-mono); font-weight: 600; }
+.score-bar { height: 3px; border-radius: 2px; margin-top: 8px; }
+
+/* ── LOG ── */
+.log-item { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--bg); font-size: 11px; }
+.log-item:last-child { border-bottom: none; }
+.log-time { font-family: var(--font-mono); font-weight: 700; color: var(--text-muted); min-width: 40px; }
+.log-text { color: var(--text-main); font-weight: 500; line-height: 1.5; }
+.log-badge { display: inline-block; padding: 1px 4px; border-radius: 3px; font-weight: 700; font-size: 9px; margin-right: 4px; }
+
+/* ── DETAIL PANEL ── */
+.detail-panel {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 20px; flex-shrink: 0; min-height: 140px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+.detail-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+.detail-label { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-family: var(--font-mono); margin-bottom: 6px; }
+.detail-val { font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: var(--text-main); }
+.detail-sub { font-size: 10px; color: var(--text-muted); font-weight: 500; margin-top: 4px; }
+.algo-tag { font-size: 9px; font-weight: 700; color: var(--accent); font-family: var(--font-mono); margin-top: 8px; background: var(--bg); padding: 2px 6px; border-radius: 4px; display: inline-block; }
+
+/* ── MAP ── */
+.map-wrap { flex: 1; position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: #e5e5e5; }
+#map { width: 100%; height: 100%; z-index: 1; }
+.leaflet-control-attribution { display: none; }
+
+/* ── MAP CONTROLS ── */
+.map-controls { position: absolute; top: 16px; left: 16px; z-index: 10; display: flex; flex-direction: column; gap: 8px; }
+.ctrl-btn {
+  background: var(--surface); border: 1px solid var(--border); font-weight: 600;
+  color: var(--text-main); padding: 8px 16px; border-radius: 8px;
+  font-family: var(--font-mono); font-size: 11px; cursor: pointer;
+  transition: all .2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-transform: uppercase;
+}
+.ctrl-btn:hover { background: var(--bg); border-color: var(--accent); color: var(--accent-dark); }
+.ctrl-btn.red { border-color: var(--red); color: var(--red); }
+.ctrl-btn.red:hover { background: rgba(239,68,68,0.05); }
+
+/* ── MAP LEGEND ── */
+.map-legend {
+  position: absolute; top: 16px; right: 16px; z-index: 10;
+  background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+.legend-row { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; color: var(--text-main); margin-bottom: 6px; }
+.legend-row:last-child { margin-bottom: 0; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── ALERT BANNER ── */
+.alert-banner {
+  position: absolute; top: 16px; left: 50%; transform: translateX(-50%) translateY(-20px); z-index: 20;
+  background: white; border: 2px solid var(--red); box-shadow: 0 8px 16px rgba(239,68,68,0.15);
+  border-radius: 8px; padding: 12px 20px; min-width: 300px; opacity: 0; pointer-events: none; transition: all 0.3s;
+}
+.alert-banner.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+.alert-title { font-size: 11px; font-weight: 700; color: var(--red); font-family: var(--font-mono); margin-bottom: 4px; text-transform: uppercase; }
+.alert-text { font-size: 12px; font-weight: 500; color: var(--text-main); line-height: 1.5; }
+
+/* ── TIMELINE SLIDER ── */
+.timeline-bar {
+  position: absolute; bottom: 16px; left: 16px; right: 16px; z-index: 10;
+  background: rgba(255,255,255,0.95); border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  padding: 12px 20px; border-radius: 12px; backdrop-filter: blur(8px);
+}
+.timeline-top { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+.timeline-date { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--accent-dark); min-width: 100px; }
+.timeline-stage { font-family: var(--font-mono); font-size: 10px; font-weight: 700; color: var(--accent-dark); background: var(--bg); border: 1px solid var(--border); padding: 4px 12px; border-radius: 6px; letter-spacing: 0.5px; text-transform: uppercase; }
+.weather-widget { display: flex; align-items: center; gap: 10px; margin-left: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 16px; }
+.weather-name { font-size: 12px; font-weight: 700; text-transform: uppercase; }
+.weather-temp { font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--text-muted); }
+.timeline-controls { display: flex; align-items: center; gap: 12px; }
+.tl-btn {
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-main); font-weight: 700;
+  width: 32px; height: 32px; border-radius: 8px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .2s;
+}
+.tl-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--bg); }
+.tl-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+.slider-wrap { flex: 1; position: relative; }
+.timeline-slider { width: 100%; height: 6px; -webkit-appearance: none; appearance: none; background: var(--border); border-radius: 3px; outline: none; cursor: pointer; }
+.timeline-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); cursor: pointer; }
+.timeline-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 3px solid white; cursor: pointer; }
+
+/* ИСПРАВЛЕННЫЕ МАРКЕРЫ */
+.stage-markers { display: flex; position: relative; height: 16px; margin-top: 8px; }
+.stage-marker {
+    position: absolute;
+    transform: translateX(-50%);
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    white-space: nowrap;
+    transition: color 0.2s;
+}
+.stage-marker.first { transform: translateX(0); } /* Не сдвигаем первый маркер влево */
+.stage-marker.last { transform: translateX(-100%); } /* Не сдвигаем последний вправо */
+.stage-marker.active { color: var(--accent-dark); }
+
+.weather-forecast-strip { display: flex; gap: 2px; margin-top: 8px; height: 16px; align-items: flex-end; }
+.wf-day { flex: 1; border-radius: 2px 2px 0 0; min-width: 2px; opacity: 0.8; transition: opacity .1s; }
+.wf-day:hover { opacity: 1; }
+
+</style>
+
+<div class="logistics-wrapper">
+
+  <div class="module-header">
+    <div>
+      <div class="mh-title">Materials & Logistics (5D)</div>
+      <div class="mh-subtitle">NPP-2 Site Operations · Supply Chain Intelligence</div>
+    </div>
+    <div class="mh-stats">
+      <div class="mh-chip active" id="day-chip">DAY 2912 · COMMISSIONING</div>
+      <div class="mh-chip" id="date-chip">22/12/2036</div>
+    </div>
+  </div>
+
+  <div class="l-grid">
+
+    <div class="l-sidebar">
+      <div class="tabs">
+        <div class="tab active" onclick="showTab('inventory')">INVENTORY</div>
+        <div class="tab" onclick="showTab('suppliers')">SUPPLIERS</div>
+        <div class="tab" onclick="showTab('local')">LOCAL CONTENT</div>
+        <div class="tab" onclick="showTab('subst')">STANDARDS</div>
+        <div class="tab" onclick="showTab('log')">EVENTS</div>
+      </div>
+
+      <div class="tab-pane active" id="pane-inventory">
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-lbl">Alerts</div>
+            <div class="metric-val" id="m-alerts" style="color:var(--red)">—</div>
+            <div class="metric-sub">critical items</div>
+          </div>
+          <div class="metric">
+            <div class="metric-lbl">In Transit</div>
+            <div class="metric-val" id="m-transit" style="color:var(--cyan)">—</div>
+            <div class="metric-sub">active orders</div>
+          </div>
+          <div class="metric">
+            <div class="metric-lbl">Healthy</div>
+            <div class="metric-val" id="m-ok" style="color:var(--green)">—</div>
+            <div class="metric-sub">in stock</div>
+          </div>
+          <div class="metric">
+            <div class="metric-lbl">Avg Stock</div>
+            <div class="metric-val" id="m-avg" style="color:var(--accent-dark)">—</div>
+            <div class="metric-sub">site capacity</div>
+          </div>
+        </div>
+        <div class="sec-label">Material Catalog — 11 Items</div>
+        <div id="mat-list"></div>
+      </div>
+
+      <div class="tab-pane" id="pane-suppliers">
+        <div class="sec-label">Supplier Scoring & Readiness</div>
+        <div id="sup-list"></div>
+      </div>
+
+      <div class="tab-pane" id="pane-local">
+        <div class="sec-label">Localization Index · KZ Suppliers</div>
+        <div style="text-align:center;padding:16px 0 24px;">
+          <div style="font-family:var(--font-mono);font-size:48px;font-weight:700;color:var(--green);line-height:1;" id="li-big">62%</div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:8px;" id="li-status">Exceeds Gov Target (40%)</div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;"><span>Local Processes</span><span id="li-proc" style="font-family:var(--font-mono);color:var(--text-main)">—</span></div>
+          <div class="bar-track"><div class="bar-fill" id="li-proc-bar" style="background:var(--green)"></div></div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;"><span>Capability Dev</span><span id="li-cap" style="font-family:var(--font-mono);color:var(--text-main)">—</span></div>
+          <div class="bar-track"><div class="bar-fill" id="li-cap-bar" style="background:var(--amber)"></div></div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;"><span>Local Waste Mgmt</span><span id="li-waste" style="font-family:var(--font-mono);color:var(--text-main)">—</span></div>
+          <div class="bar-track"><div class="bar-fill" id="li-waste-bar" style="background:var(--text-muted)"></div></div>
+        </div>
+        <div style="margin-top:20px;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;">
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);font-family:var(--font-mono);letter-spacing:1px;margin-bottom:10px;">BREAKDOWN BY MATERIAL</div>
+          <div id="li-breakdown" style="font-size:11px;font-weight:600;"></div>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="pane-subst">
+        <div class="sec-label">Material Equivalency · ASTM to GOST</div>
+        <div id="subst-list"></div>
+      </div>
+
+      <div class="tab-pane" id="pane-log">
+        <div class="sec-label">System Event Log</div>
+        <div id="event-log"></div>
+      </div>
+    </div>
+
+    <div class="l-main">
+
+      <div class="detail-panel">
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);font-family:var(--font-mono);letter-spacing:1px;margin-bottom:12px;">
+          MATERIAL INTELLIGENCE — SELECT ITEM ON LEFT
+        </div>
+        <div class="detail-grid" id="detail-grid">
+          <div class="detail-stat"><div class="detail-label">Select Material</div><div class="detail-val" style="color:var(--text-muted)">←</div><div class="detail-sub">Click a card</div></div>
+        </div>
+      </div>
+
+      <div class="map-wrap">
+        <div id="map"></div>
+
+        <div class="map-controls">
+          <button class="ctrl-btn red" onclick="simRisk('weather')">Simulate Blizzard</button>
+          <button class="ctrl-btn red" onclick="simRisk('supplier_fail')">Simulate Failure</button>
+          <button class="ctrl-btn" onclick="simReset()">Reset Simulation</button>
+        </div>
+
+        <div class="alert-banner" id="alert-banner">
+          <div class="alert-title">SYSTEM ALERT</div>
+          <div class="alert-text" id="alert-text"></div>
+        </div>
+
+        <div class="map-legend">
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);font-family:var(--font-mono);letter-spacing:1px;margin-bottom:8px;">MAP LEGEND</div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--red);"></div>NPP Site</div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--green);"></div>Primary Supplier</div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--amber)"></div>Backup Supplier</div>
+          <div class="legend-row"><div class="legend-dot" style="background:#94a3b8"></div>Reserve</div>
+          <div style="border-top:1px solid var(--border);margin:8px 0"></div>
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);font-family:var(--font-mono);letter-spacing:1px;margin-bottom:6px;">ROUTES</div>
+          <div class="legend-row"><div style="width:24px;height:3px;background:var(--cyan);border-radius:1px"></div>Active Order (In Transit)</div>
+          <div class="legend-row"><div style="width:24px;height:2px;background:transparent;border-top:2px dashed var(--text-muted)"></div>No Active Order</div>
+        </div>
+
+        <div class="timeline-bar">
+          <div class="timeline-top">
+            <div class="timeline-date" id="tl-date">22/12/2036</div>
+            <div class="timeline-stage" id="tl-stage">STAGE 1 · SITE PREPARATION</div>
+            <div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-muted)" id="tl-daynum">Day 1</div>
+
+            <div class="weather-widget" id="weather-widget">
+              <div class="weather-name" id="w-name">CLEAR</div>
+              <div class="weather-temp" id="w-temp">-10°C</div>
+            </div>
+          </div>
+
+          <div class="timeline-controls">
+            <button class="tl-btn" onclick="sliderStep(-30)" title="-30 days">«</button>
+            <button class="tl-btn" onclick="sliderStep(-1)" title="-1 day">‹</button>
+            <button class="tl-btn active" id="play-btn" onclick="togglePlay()" title="Play/Pause">▶</button>
+            <button class="tl-btn" onclick="sliderStep(1)" title="+1 day">›</button>
+            <button class="tl-btn" onclick="sliderStep(30)" title="+30 days">»</button>
+
+            <div class="slider-wrap">
+              <input type="range" class="timeline-slider" id="timeline-slider" min="0" max="3649" value="2911" oninput="onSliderInput(this.value)">
+              <div class="stage-markers" id="stage-markers"></div>
+            </div>
+
+            <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--text-main);min-width:40px;text-align:right" id="tl-year">2029</div>
+          </div>
+          <div class="weather-forecast-strip" id="weather-strip" title="60-Day Weather Forecast"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// TRANSLATED DATA & LOGIC
+// ════════════════════════════════════════════════════════
+
+const STAGES = {1:"Site Preparation",2:"Foundation",3:"Structural Works",4:"Equipment Install",5:"Electrical & Piping",6:"Commissioning"};
+
+const WEATHER_FACTORS = {Clear:1.0, Cloudy:1.05, Rain:1.15, Snow:1.4, Blizzard:2.0};
+const SEASON_FACTORS = {12:1.35,1:1.35,2:1.35,3:1.20,4:1.20,5:1.0,6:1.0,7:1.0,8:1.0,9:1.10,10:1.10,11:1.10};
+const DAY_FACTORS = {0:1.0,1:1.0,2:1.0,3:1.05,4:1.15,5:0.9,6:0.85};
+const ROAD_FACTORS = {"Highway":1.0,"Regional":1.25,"Dirt":1.6};
+
+const MATERIALS = {
+  concrete:    {name:"Concrete M400",   unit:"m³",  qc:"C",fi:false,shelf:0,    zone:null,         rate:[2.0,3.5,2.5,0.5,0.2,0.1],  cap:5000, stock:52, rop:50, equiv:"GOST 26633-2015 ≈ ASTM C94",      substOk:true,  color:"#006241", mapColor:"#006241"},
+  rebar:       {name:"Rebar A500C",     unit:"t",   qc:"B",fi:false,shelf:3650, zone:null,         rate:[1.5,2.0,1.8,0.8,0.3,0.05], cap:2000, stock:68, rop:40, equiv:"GOST 5781-82 ≈ ASTM A615 Gr.60", substOk:true,  color:"#00754A", mapColor:"#00754A"},
+  cement:      {name:"Cement M500",     unit:"t",   qc:"C",fi:false,shelf:180,  zone:null,         rate:[1.0,2.5,1.5,0.3,0.1,0.05], cap:1500, stock:55, rop:45, equiv:"GOST 31108-2020 ≈ ASTM C150",     substOk:true,  color:"#0ea5e9", mapColor:"#0ea5e9"},
+  rebar_fine:  {name:"Rebar Ø8-12",     unit:"t",   qc:"B",fi:false,shelf:3650, zone:null,         rate:[0.8,1.2,1.5,1.0,0.4,0.1],  cap:800,  stock:65, rop:35, equiv:"GOST 5781-82 ≈ ASTM A615 Gr.40",  substOk:true,  color:"#3b82f6", mapColor:"#3b82f6"},
+  steel_pipe:  {name:"Steel Pipes",     unit:"m",   qc:"B",fi:false,shelf:3650, zone:null,         rate:[0.3,0.8,1.5,2.0,1.2,0.3],  cap:10000,stock:54, rop:35, equiv:"GOST 8731-74 ≈ ASME SA-106 Gr.B", substOk:false, color:"#8b5cf6", mapColor:"#8b5cf6"},
+  hi_pipe:     {name:"High-Alloy Pipe", unit:"m",   qc:"A",fi:true, shelf:3650, zone:"RESTRICTED", rate:[0.0,0.1,0.8,2.5,1.5,0.2],  cap:3000, stock:78, rop:30, equiv:"GOST 9940-81 ≈ ASTM A312 TP316L", substOk:false, color:"#d946ef", mapColor:"#d946ef"},
+  cable:       {name:"Cable VVG",       unit:"km",  qc:"B",fi:false,shelf:3650, zone:null,         rate:[0.1,0.2,0.5,1.5,2.5,1.0],  cap:500,  stock:82, rop:25, equiv:"GOST 16442-80 ≈ NEC THWN",        substOk:true,  color:"#f59e0b", mapColor:"#f59e0b"},
+  electrodes:  {name:"Electrodes E50A", unit:"kg",  qc:"A",fi:true, shelf:365,  zone:null,         rate:[0.2,0.5,1.0,2.0,1.5,0.5],  cap:50000,stock:45, rop:40, equiv:"GOST 9467-75 ≈ AWS E7018",        substOk:true,  color:"#ef4444", mapColor:"#ef4444"},
+  bolts:       {name:"Bolts & Nuts",    unit:"kg",  qc:"C",fi:false,shelf:3650, zone:null,         rate:[0.3,0.5,0.8,1.2,1.0,0.4],  cap:30000,stock:61, rop:30, equiv:"GOST 7798-70 ≈ ASTM A307",        substOk:true,  color:"#10b981", mapColor:"#10b981"},
+  paint:       {name:"Anti-Corr Paint", unit:"L",   qc:"B",fi:false,shelf:365,  zone:"CHEMICAL_B", rate:[0.1,0.3,0.5,0.8,1.2,1.5],  cap:20000,stock:57, rop:30, equiv:"TU 2312 ≈ SSPC Standards",        substOk:true,  color:"#64748b", mapColor:"#64748b"},
+  lubricants:  {name:"Lubricants",      unit:"L",   qc:"A",fi:false,shelf:730,  zone:"RESTRICTED", rate:[0.1,0.2,0.3,0.5,0.5,0.3],  cap:10000,stock:55, rop:25, equiv:"GOST 17479.4 ≈ ISO 6743",         substOk:true,  color:"#1E3932", mapColor:"#1E3932"},
+};
+
+const SUPPLIERS = {
+  s1: {name:"AlmatyStroyMat",    city:"Almaty",       lat:43.238,lng:76.945, kz:true, cert:"FULL",    rel:94,speed:2.5, price:82,road:"Highway",  mats:["concrete", "cement"],        status:"primary"},
+  s2: {name:"TarazStroyProm",    city:"Taraz",        lat:42.900,lng:71.380, kz:true, cert:"PARTIAL", rel:88,speed:3.0, price:75,road:"Regional", mats:["paint"],                       status:"primary"},
+  s3: {name:"ShymkentPromGroup", city:"Shymkent",     lat:42.317,lng:69.586, kz:true, cert:"PARTIAL", rel:86,speed:4.0, price:65,road:"Highway",  mats:["rebar_fine"],                  status:"primary"},
+  s4: {name:"KarStroyResource",  city:"Karaganda",    lat:49.807,lng:73.089, kz:true, cert:"PARTIAL", rel:90,speed:4.5, price:75,road:"Highway",  mats:["rebar"],                       status:"primary"},
+  s5: {name:"ZhezkazganMetal",   city:"Zhezkazgan",   lat:47.800,lng:67.710, kz:true, cert:"PARTIAL", rel:80,speed:5.0, price:70,road:"Regional", mats:["steel_pipe"],                  status:"primary"},
+  s6: {name:"TemirtauSteel",     city:"Temirtau",     lat:50.060,lng:72.960, kz:true, cert:"PARTIAL", rel:83,speed:4.0, price:72,road:"Regional", mats:["electrodes"],                  status:"primary"},
+  s7: {name:"AstanaPromSnab",    city:"Astana",       lat:51.180,lng:71.446, kz:true, cert:"PARTIAL", rel:89,speed:5.0, price:78,road:"Highway",  mats:["cable"],                       status:"primary"},
+  s10:{name:"UstKamenMontazh",   city:"Ust-Kamenogorsk",lat:49.948,lng:82.628, kz:true, cert:"PARTIAL", rel:85,speed:6.0, price:70,road:"Regional", mats:["bolts"],                       status:"primary"},
+  s12:{name:"AktauPortSnab",     city:"Aktau",        lat:43.650,lng:51.157, kz:true, cert:"PARTIAL", rel:75,speed:9.0, price:68,road:"Regional", mats:["hi_pipe"],                     status:"primary"},
+  s8: {name:"KostanayMontazh",   city:"Kostanay",     lat:53.214,lng:63.625, kz:true, cert:"NONE",    rel:71,speed:7.0, price:60,road:"Regional", mats:["lubricants", "paint"],         status:"reserve"},
+  s9: {name:"PetropavlSnab",     city:"Petropavlovsk",lat:54.875,lng:69.164, kz:true, cert:"NONE",    rel:68,speed:10.0,price:58,road:"Regional", mats:["cable", "electrodes"],         status:"reserve"},
+  s11:{name:"SemeyPromComplex",  city:"Semey",        lat:50.411,lng:80.226, kz:true, cert:"NONE",    rel:72,speed:8.5, price:64,road:"Regional", mats:["concrete", "cement", "bolts"], status:"reserve"},
+  s13:{name:"AtyrauMunaiSnab",   city:"Atyrau",       lat:47.117,lng:51.921, kz:true, cert:"NONE",    rel:70,speed:12.0,price:63,road:"Regional", mats:["lubricants", "cable"],         status:"reserve"},
+  s14:{name:"AktobeMetalSnab",   city:"Aktobe",       lat:50.300,lng:57.154, kz:true, cert:"PARTIAL", rel:74,speed:10.0,price:67,road:"Regional", mats:["rebar", "paint", "steel_pipe"],status:"reserve"},
+  s15:{name:"Rosatom-Snab",      city:"Yekaterinburg",lat:56.838,lng:60.605, kz:false,cert:"FULL",    rel:96,speed:14.0,price:95,road:"Regional", mats:["hi_pipe","electrodes"],        status:"reserve"},
+  s16:{name:"CNPE Kazakhstan",   city:"Urumqi (PRC)", lat:43.826,lng:87.617, kz:false,cert:"FULL",    rel:91,speed:9.0, price:88,road:"Highway",  mats:["steel_pipe","cable"],          status:"reserve"},
+};
+
+const NPP = { lat: 45.195, lng: 73.974 };
+
+let state = initState();
+let selectedMat = null;
+let events = [
+  {type:"red",   time:"08:14", text:"ALERT: Concrete M400 below reorder point (42%). Order placed with AlmatyStroyMat."},
+  {type:"amber", time:"08:10", text:"Cement M500 critically low (21%). Consumption limit -25% applied."},
+  {type:"cyan",  time:"07:55", text:"Electrodes E50A: delivery expected in 3 days. Supplier confirmed."},
+  {type:"green", time:"07:30", text:"Cable VVG and Bolts stable. Next reorder in 5 days."},
+];
+
+function initState() {
+  const mats = {};
+  for (const [id, m] of Object.entries(MATERIALS)) {
+    mats[id] = {stock: m.stock, ordered: false, orderDays: 0, supId: null};
+  }
+  mats.concrete.ordered = true; mats.concrete.orderDays = 2; mats.concrete.supId = "s1";
+  mats.electrodes.ordered = true; mats.electrodes.orderDays = 3; mats.electrodes.supId = "s3";
+  return {day:1, stage:1, date:new Date(2029,0,1), weather:"Clear", mats, orders:[]};
+}
+
+// ════════════════════════════════════════════════════════
+// ALGORITHMS
+// ════════════════════════════════════════════════════════
+
+function lstmForecast(matId, stage, date, weather) {
+  const m = MATERIALS[matId];
+  const si = Math.min(stage - 1, 5);
+  const baseRate = m.rate[si];
+
+  const wSeason = SEASON_FACTORS[date.getMonth() + 1] || 1.0;
+  const wWeather = WEATHER_FACTORS[weather] || 1.0;
+  const wDay = DAY_FACTORS[date.getDay()];
+  const noise = 0.92 + Math.random() * 0.16;
+
+  const dailyPct = baseRate * wSeason * wWeather * wDay * noise;
+  const dailyUnits = (dailyPct / 100) * m.cap;
+
+  return { dailyPct: +dailyPct.toFixed(3), dailyUnits: +dailyUnits.toFixed(2), wSeason, wWeather, wDay, accuracy: 89.8 };
+}
+
+function calcSafetyStock(matId, deliveryDays) {
+  const m = MATERIALS[matId];
+  const avgRate = m.rate.reduce((a,b) => a+b, 0) / m.rate.length;
+  const sigmaD = avgRate * 0.15 * m.cap / 100;
+  return +(1.65 * sigmaD * Math.sqrt(deliveryDays + 7)).toFixed(1);
+}
+
+function calcROP(matId, stage, date, weather, supId) {
+  const m = MATERIALS[matId];
+  const sup = SUPPLIERS[supId];
+  const forecast = lstmForecast(matId, stage, date, weather);
+
+  const adjDelivery = sup.speed * (WEATHER_FACTORS[weather] || 1.0) * (SEASON_FACTORS[date.getMonth() + 1] || 1.0) * (ROAD_FACTORS[sup.road] || 1.0) * DAY_FACTORS[date.getDay()];
+  const ss = calcSafetyStock(matId, adjDelivery);
+  const ropUnits = forecast.dailyUnits * adjDelivery + ss;
+  const ropPct = +(ropUnits / m.cap * 100).toFixed(1);
+  const liveStock = state?.mats?.[matId]?.stock ?? m.stock;
+
+  return { ropPct, ropUnits: +ropUnits.toFixed(1), adjDelivery: +adjDelivery.toFixed(1), ss, forecast, orderNow: liveStock <= ropPct };
+}
+
+function calcScore(supId) {
+  const s = SUPPLIERS[supId];
+  const speed = Math.max(0, 100 - s.speed * 5);
+  const price = 100 - s.price;
+  const li = s.kz ? 100 : 0;
+  const total = s.rel*0.40 + speed*0.35 + price*0.15 + li*0.10;
+  return {total:+total.toFixed(1), rel:s.rel, speed:+speed.toFixed(1), price:+price.toFixed(1), li};
+}
+
+function allSuppliersFor(matId) {
+  const BLOCKED = ["unavailable", "failed"];
+  const c = [];
+  for (const [sid, sup] of Object.entries(SUPPLIERS)) {
+    if (sup.mats.includes(matId) && !BLOCKED.includes(sup.status)) c.push({sid, score: calcScore(sid).total, sup});
+  }
+  return c.sort((a, b) => b.score - a.score);
+}
+
+function bestSupplier(matId) {
+  const list = allSuppliersFor(matId);
+  const m = MATERIALS[matId];
+  if (m.qc === "A") {
+    const fullCert = list.find(c => c.sup.cert === "FULL");
+    if (fullCert) return fullCert.sid;
+  }
+  return list.length > 0 ? list[0].sid : null;
+}
+
+function calcLI() {
+  let kz = 0, total = 0;
+  for (const matId of Object.keys(MATERIALS)) {
+    const sid = state.mats[matId].supId || bestSupplier(matId);
+    if (sid) { total++; if (SUPPLIERS[sid].kz) kz++; }
+  }
+  const overall = total > 0 ? +(kz / total * 100).toFixed(1) : 62.0;
+  return { overall, processes: +(overall * 1.08).toFixed(1), capabilities: +(overall * 0.72).toFixed(1), waste: +(overall * 0.44).toFixed(1), target: 40.0, ok: overall >= 40 };
+}
+
+// ════════════════════════════════════════════════════════
+// SIMULATION EVENTS
+// ════════════════════════════════════════════════════════
+const SUPPLIERS_DEFAULTS = {
+  s1:{status:"primary",rel:94}, s2:{status:"primary",rel:88}, s3:{status:"primary",rel:86}, s4:{status:"primary",rel:90},
+  s5:{status:"primary",rel:80}, s6:{status:"primary",rel:83}, s7:{status:"primary",rel:89}, s10:{status:"primary",rel:85}, s12:{status:"primary",rel:75},
+  s8:{status:"reserve",rel:71}, s9:{status:"reserve",rel:68}, s11:{status:"reserve",rel:72}, s13:{status:"reserve",rel:70}, s14:{status:"reserve",rel:74},
+  s15:{status:"reserve",rel:96}, s16:{status:"reserve",rel:91},
+};
+
+function resetSuppliers() {
+  for (const [sid, defaults] of Object.entries(SUPPLIERS_DEFAULTS)) {
+    SUPPLIERS[sid].status = defaults.status; SUPPLIERS[sid].rel = defaults.rel;
+  }
+}
+
+let incidentCount = 0;
+let consumptionLimits = {};
+
+function simRisk(type) {
+  const t = new Date().toTimeString().slice(0,5);
+  incidentCount++;
+  const inc = `#${incidentCount}`;
+
+  if (type === "weather") {
+    state.weather = "Blizzard";
+    const active = Object.entries(SUPPLIERS).filter(([,s]) => !["unavailable","failed"].includes(s.status));
+    if (active.length > 0) {
+      let targetSid = null, maxOrders = -1;
+      for (const [sid] of active) {
+        const c = Object.values(state.mats).filter(ms => ms.supId === sid && ms.ordered).length;
+        if (c > maxOrders) { maxOrders = c; targetSid = sid; }
+      }
+      if (!targetSid || maxOrders === 0) targetSid = (active.find(([,s]) => s.status === "primary") || active[0])[0];
+      const sup = SUPPLIERS[targetSid];
+      sup.status = "unavailable"; sup.rel = Math.max(20, sup.rel - 25);
+
+      const affected = [];
+      for (const [matId, ms] of Object.entries(state.mats)) {
+        if (ms.supId === targetSid) {
+          if (ms.ordered) {
+            const delay = 2 + Math.floor(Math.random() * 3);
+            ms.orderDays += delay; consumptionLimits[matId] = 0.5;
+            affected.push(`${MATERIALS[matId].name} (+${delay}d delay, limit -50%)`);
+          } else {
+            consumptionLimits[matId] = 0.7; ms.supId = null;
+            affected.push(`${MATERIALS[matId].name} (limit -30%)`);
+          }
+        }
+      }
+      events.unshift(
+        {type:"red",   time:t, text:`CRITICAL ALERT ${inc}: BLIZZARD in ${sup.city}. ${sup.name} is unavailable.`},
+        {type:"amber", time:t, text:`WARNING: Affected: ${affected.join("; ")}`},
+        {type:"cyan",  time:t, text:`INFO: System applied consumption limits and rerouted pending orders.`}
+      );
+      showAlert(`Incident ${inc}: Blizzard in ${sup.city}!\n${sup.name} unavailable.\n${affected.length} materials affected.`);
+    }
+
+  } else if (type === "supplier_fail") {
+    const active = Object.entries(SUPPLIERS).filter(([,s]) => !["unavailable","failed"].includes(s.status));
+    if (active.length > 0) {
+      const [sid, sup] = active.find(([,s]) => s.status === "primary") || active[0];
+      sup.status = "failed"; sup.rel = 0;
+      const reassigned = [];
+      for (const [matId, ms] of Object.entries(state.mats)) {
+        if (ms.supId === sid) {
+          ms.ordered = false; ms.orderDays = 0; ms.supId = null;
+          consumptionLimits[matId] = 0.6;
+          const newSup = bestSupplier(matId);
+          reassigned.push(`${MATERIALS[matId].name} → ${newSup ? SUPPLIERS[newSup].name : "NONE"}`);
+        }
+      }
+      events.unshift(
+        {type:"red",  time:t, text:`CRITICAL ALERT ${inc}: SUPPLIER FAIL — ${sup.name} completely failed. Reliability: 0%.`},
+        {type:"amber",time:t, text:`WARNING: Reassigned: ${reassigned.join("; ")}`},
+        {type:"cyan", time:t, text:`INFO: -40% consumption limit applied until new delivery.`}
+      );
+      showAlert(`Incident ${inc}: Supplier Failure!\n${sup.name} offline.\n${reassigned.length} materials reassigned.`);
+    }
+  }
+  renderAll(); drawMap();
+}
+
+function simReset() {
+  resetSuppliers(); incidentCount = 0; consumptionLimits = {};
+  state = initState();
+  events = [{type:"green", time:"--:--", text:"System Reset. All parameters and suppliers restored."}];
+  currentSliderDay = 0; if (isPlaying) togglePlay();
+  selectedMat = null; goToDay(PROJECT_DAY_INDEX); renderAll(); drawMap();
+}
+
+// ════════════════════════════════════════════════════════
+// RENDER UI
+// ════════════════════════════════════════════════════════
+
+function barColor(pct) { return pct > 60 ? "var(--green)" : pct > 30 ? "var(--amber)" : "var(--red)"; }
+
+function renderMaterials() {
+  const list = document.getElementById("mat-list");
+  let html = "";
+  for (const [id, m] of Object.entries(MATERIALS)) {
+    const ms = state.mats[id];
+    const f = lstmForecast(id, state.stage, state.date, state.weather);
+    const daysLeft = f.dailyPct > 0 ? Math.floor(ms.stock / f.dailyPct) : 999;
+
+    let badge = "", cls = "";
+    if (ms.ordered) { badge = `<span class="badge badge-cyan">TRANSIT</span>`; cls = "transit"; }
+    else if (ms.stock < 20) { badge = `<span class="badge badge-crit">CRITICAL</span>`; cls = "critical"; }
+    else if (ms.stock <= m.rop) { badge = `<span class="badge badge-warn">REORDER</span>`; cls = "warning"; }
+    else { badge = `<span class="badge badge-ok">HEALTHY</span>`; cls = "ok"; }
+
+    const qcBadge = m.qc === "A" ? `<span class="badge badge-gray" style="color:var(--purple);border-color:var(--purple)">CLASS A</span>` : "";
+    const limit = consumptionLimits[id];
+    const limitBadge = limit ? `<span class="badge badge-warn" style="margin-left:4px">LIMIT -${Math.round((1-limit)*100)}%</span>` : "";
+    const sel = selectedMat === id ? " selected" : "";
+
+    html += `<div class="mat-card ${cls}${sel}" onclick="selectMat('${id}')">
+      <div class="mat-head">
+        <div>
+          <div class="mat-name">${m.name} ${qcBadge}${limitBadge}</div>
+          <div class="mat-meta">${m.unit} · burn rate ${f.dailyPct.toFixed(2)}%/day · ${daysLeft} days left</div>
+        </div>
+        ${badge}
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, Math.max(0, Math.round(ms.stock)))}%;background:${barColor(ms.stock)}"></div></div>
+      <div class="mat-foot">
+        <div class="mat-pct" style="color:${barColor(ms.stock)}">${Math.round(ms.stock)}%</div>
+        <div class="mat-days">ROP @ ${m.rop}%${ms.ordered ? ` · ${ms.orderDays}d to arrival` : ""}</div>
+      </div>
+    </div>`;
+  }
+  list.innerHTML = html;
+}
+
+function renderMetrics() {
+  const mats = Object.values(state.mats);
+  const mEntries = Object.entries(MATERIALS);
+  document.getElementById("m-alerts").textContent = mEntries.filter(([id]) => state.mats[id].stock < 20 && !state.mats[id].ordered).length;
+  document.getElementById("m-transit").textContent = mats.filter(m => m.ordered).length;
+  document.getElementById("m-ok").textContent = mEntries.filter(([id, m]) => state.mats[id].stock >= m.rop && !state.mats[id].ordered).length;
+  document.getElementById("m-avg").textContent = +(mats.reduce((s,m) => s + m.stock, 0) / mats.length).toFixed(1) + "%";
+
+  document.getElementById("day-chip").textContent = `DAY ${state.day + 1} · ${STAGES[state.stage].toUpperCase()}`;
+
+  // Format to standard English date (e.g., 01/01/2029)
+  const day = String(state.date.getDate()).padStart(2, '0');
+  const month = String(state.date.getMonth() + 1).padStart(2, '0');
+  const year = state.date.getFullYear();
+  document.getElementById("date-chip").textContent = `${day}/${month}/${year}`;
+}
+
+function renderSuppliers() {
+  const list = document.getElementById("sup-list");
+  const sorted = Object.entries(SUPPLIERS).sort((a,b) => calcScore(b[0]).total - calcScore(a[0]).total);
+  let html = "";
+  for (const [sid, sup] of sorted) {
+    const sc = calcScore(sid);
+    const isDown = ["unavailable","failed"].includes(sup.status);
+    html += `<div class="sup-card" style="border-left:4px solid ${isDown ? "var(--border)" : "var(--accent)"};${isDown ? "opacity:0.5" : ""}">
+      <div class="sup-head">
+        <div>
+          <div class="sup-name">${sup.name}${isDown ? ` <span class="badge badge-crit">${sup.status.toUpperCase()}</span>` : ""}</div>
+          <div class="sup-city">${sup.city}</div>
+        </div>
+        <div class="sup-score" style="color:${isDown ? "var(--text-muted)" : "var(--accent-dark)"}">${sc.total}</div>
+      </div>
+      <div class="sup-row"><span>Reliability</span><span>${sup.rel}%</span></div>
+      <div class="sup-row"><span>Lead Time</span><span>${sup.speed} days</span></div>
+      <div class="sup-row"><span>Nuclear Cert</span><span style="color:${sup.cert==="FULL"?"var(--green)":sup.cert==="PARTIAL"?"var(--amber)":"var(--red)"}">${sup.cert}</span></div>
+      <div class="sup-row"><span>Local Content</span><span style="color:${sup.kz ? "var(--green)" : "var(--text-muted)"}">${sup.kz ? "YES" : "NO"}</span></div>
+    </div>`;
+  }
+  list.innerHTML = html;
+}
+
+function renderLocalization() {
+  const li = calcLI();
+  const elBig = document.getElementById("li-big");
+  elBig.textContent = li.overall + "%";
+  elBig.style.color = li.ok ? "var(--green)" : "var(--red)";
+  document.getElementById("li-status").textContent = li.ok ? `Exceeds Target (${li.target}%)` : `Below Target ${li.target}%`;
+  document.getElementById("li-proc").textContent = Math.min(100, li.processes) + "%";
+  document.getElementById("li-cap").textContent = Math.min(100, li.capabilities) + "%";
+  document.getElementById("li-waste").textContent = Math.min(100, li.waste) + "%";
+  document.getElementById("li-proc-bar").style.width = Math.min(100, li.processes) + "%";
+  document.getElementById("li-cap-bar").style.width = Math.min(100, li.capabilities) + "%";
+  document.getElementById("li-waste-bar").style.width = Math.min(100, li.waste) + "%";
+
+  let html = "";
+  for (const [matId, m] of Object.entries(MATERIALS)) {
+    const sid = state.mats[matId].supId || bestSupplier(matId);
+    const sup = sid ? SUPPLIERS[sid] : null;
+    html += `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--bg)">
+      <span style="color:var(--text-muted)">${m.name}</span>
+      <span style="color:${sup?.kz ? "var(--green)" : "var(--red)"};font-weight:700">${sup ? (sup.kz ? "LOCAL" : "IMPORT") : "—"}</span>
+    </div>`;
+  }
+  document.getElementById("li-breakdown").innerHTML = html;
+}
+
+function renderSubstitution() {
+  const list = document.getElementById("subst-list");
+  let html = "";
+  for (const [, m] of Object.entries(MATERIALS)) {
+    const parts = m.equiv.split("≈");
+    html += `<div style="padding:10px; background:var(--bg); border:1px solid var(--border); border-radius:6px; margin-bottom:8px; border-left:3px solid ${m.substOk?"var(--green)":"var(--amber)"}">
+      <div style="font-size:12px; font-weight:700">${m.name} <span style="font-size:10px; color:var(--text-muted); font-weight:500; margin-left:4px font-family:var(--font-mono)">${parts[0]}</span></div>
+      <div style="font-size:11px; color:var(--text-main); margin-top:2px">${parts[1]||""}</div>
+      <div style="margin-top:6px">${m.substOk ? '<span class="badge badge-ok">APPROVED</span>' : '<span class="badge badge-warn">IN REVIEW</span>'}</div>
+    </div>`;
+  }
+  list.innerHTML = html;
+}
+
+function renderLog() {
+  const log = document.getElementById("event-log");
+  const cols = {red:"var(--red)",amber:"var(--amber)",green:"var(--green)",cyan:"var(--cyan)"};
+  log.innerHTML = events.slice(0,15).map(e =>
+    `<div class="log-item">
+      <div class="log-time">${e.time}</div>
+      <div class="log-text"><span class="log-badge" style="background:${cols[e.type]}22; color:${cols[e.type]}">${e.type.toUpperCase()}</span> ${e.text}</div>
+    </div>`
+  ).join("");
+}
+
+function selectMat(id) { selectedMat = id; renderMaterials(); updateDetailPanel(id); }
+
+function updateDetailPanel(id) {
+  if (!id || !MATERIALS[id]) return;
+  const m = MATERIALS[id], ms = state.mats[id];
+  const f = lstmForecast(id, state.stage, state.date, state.weather);
+  const sid = ms.supId || bestSupplier(id);
+  const rop = sid ? calcROP(id, state.stage, state.date, state.weather, sid) : null;
+  const daysLeft = f.dailyPct > 0 ? Math.floor(ms.stock / f.dailyPct) : 999;
+
+  document.getElementById("detail-grid").innerHTML = `
+    <div class="detail-stat">
+      <div class="detail-label">Current Stock</div>
+      <div class="detail-val" style="color:${barColor(ms.stock)}">${ms.stock.toFixed(1)}%</div>
+      <div class="detail-sub">${Math.round(ms.stock * m.cap / 100)} ${m.unit} / ${m.cap}</div>
+    </div>
+    <div class="detail-stat">
+      <div class="detail-label">LSTM Forecast</div>
+      <div class="detail-val">${f.dailyPct.toFixed(2)}%</div>
+      <div class="detail-sub">${f.dailyUnits.toFixed(1)} ${m.unit}/day · ${daysLeft}d left</div>
+      <div class="algo-tag">LSTM+GBM ε=89.8%</div>
+    </div>
+    <div class="detail-stat">
+      <div class="detail-label">Reorder Point</div>
+      <div class="detail-val" style="color:${rop?.orderNow ? "var(--red)" : "var(--text-main)"}">${rop ? rop.ropPct + "%" : "—"}</div>
+      <div class="detail-sub">Safety Stock: ${rop ? rop.ss : "—"}</div>
+      <div class="algo-tag">Zα·σd·√(L+R)</div>
+    </div>
+    <div class="detail-stat">
+      <div class="detail-label">Delivery Status</div>
+      <div class="detail-val" style="color:${ms.ordered ? "var(--cyan)" : "var(--text-main)"}">${ms.ordered ? ms.orderDays + "d transit" : "—"}</div>
+      <div class="detail-sub">${ms.ordered ? `From: ${SUPPLIERS[ms.supId]?.name}` : `Est: ${rop ? rop.adjDelivery + "d" : "—"}`}</div>
+    </div>
+    <div class="detail-stat">
+      <div class="detail-label">Class & Zone</div>
+      <div class="detail-val">CLASS ${m.qc}</div>
+      <div class="detail-sub">${m.zone ? `RESTRICTED` : "General"} · Shelf: ${m.shelf||"Live"}</div>
+    </div>
+  `;
+}
+
+function showTab(id) {
+  document.querySelectorAll(".tab").forEach((t,i) => {
+    const ids = ["inventory","suppliers","local","subst","log"];
+    t.classList.toggle("active", ids[i] === id);
+  });
+  document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+  document.getElementById("pane-"+id).classList.add("active");
+}
+
+function showAlert(text) {
+  if (!text) return;
+  const b = document.getElementById("alert-banner");
+  document.getElementById("alert-text").textContent = text;
+  b.classList.add("show"); setTimeout(() => b.classList.remove("show"), 6000);
+}
+
+function renderAll() {
+  renderMetrics(); renderMaterials(); renderSuppliers(); renderLocalization(); renderSubstitution(); renderLog();
+  if (selectedMat) updateDetailPanel(selectedMat);
+}
+
+// ════════════════════════════════════════════════════════
+// MAP (CartoDB Light for Eco-Corporate Theme)
+// ════════════════════════════════════════════════════════
+const map = L.map("map", {zoomControl:false}).setView([46.0, 72.0], 5);
+L.control.zoom({position:"bottomleft"}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+
+let mapMarkers = [], mapLines = [], truckTimers = [];
+const routeCache = {};
+
+async function getRoute(fromLat, fromLng, toLat, toLng) {
+  const key = `${fromLat.toFixed(3)},${fromLng.toFixed(3)}_${toLat.toFixed(3)},${toLng.toFixed(3)}`;
+  if (routeCache[key]) return routeCache[key];
+  try {
+    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`);
+    const data = await res.json();
+    if (data.routes && data.routes[0]) {
+      const coords = data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+      routeCache[key] = coords; return coords;
+    }
+  } catch(e) {}
+  return [[fromLat, fromLng],[toLat, toLng]];
+}
+
+function animateTruckOnRoute(routeCoords, color) {
+  if (!routeCoords || routeCoords.length < 2) return null;
+  const total = routeCoords.length; const speed = (total / 150) * (0.8 + Math.random() * 0.4);
+  let currentPos = 0;
+  const marker = L.marker(routeCoords[0], {
+    icon: L.divIcon({className:"",iconSize:[12,12],iconAnchor:[6,6],html:`<div style="width:12px;height:12px;border-radius:50%;background:${color};box-shadow:0 2px 4px rgba(0,0,0,0.2);border:2px solid white"></div>`})
+  }).addTo(map);
+  const timer = setInterval(() => {
+    if (!marker._map) { clearInterval(timer); return; }
+    currentPos += speed; if (currentPos >= total - 1) currentPos = 0;
+    const idx = Math.floor(currentPos); const frac = currentPos - idx;
+    const a = routeCoords[idx], b = routeCoords[idx + 1] || a;
+    marker.setLatLng([a[0] + (b[0] - a[0]) * frac, a[1] + (b[1] - a[1]) * frac]);
+  }, 50);
+  return { marker, timer };
+}
+
+async function drawMap() {
+  mapMarkers.forEach(m => m.remove()); mapMarkers = [];
+  mapLines.forEach(l => l.remove()); mapLines = [];
+  truckTimers.forEach(t => { clearInterval(t.timer); t.marker.remove(); }); truckTimers = [];
+
+  const npp = L.marker([NPP.lat, NPP.lng], {
+    icon: L.divIcon({className:"",iconSize:[20,20],iconAnchor:[10,10],html:`<div style="width:20px;height:20px;border-radius:50%;background:var(--red);border:2px solid white;box-shadow:0 0 10px rgba(239,68,68,0.5)"></div>`})
+  }).addTo(map).bindPopup(`<b>NPP Site</b><br>Ulken, Kazakhstan`);
+  mapMarkers.push(npp);
+
+  for (const [sid, sup] of Object.entries(SUPPLIERS)) {
+    const isDown = ["unavailable","failed"].includes(sup.status);
+    const color = isDown ? "#94a3b8" : sup.status === "primary" ? "var(--green)" : "var(--amber)";
+    const size = sup.status === "primary" ? 14 : 10;
+    const marker = L.marker([sup.lat, sup.lng], {
+      icon: L.divIcon({className:"",iconSize:[size,size],iconAnchor:[size/2,size/2],html:`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:1px solid white"></div>`})
+    }).addTo(map);
+
+    // Add popup to supplier markers
+    marker.bindPopup(
+      `<b style="color:${color}">${sup.name}</b><br>
+       📍 ${sup.city}<br>
+       🏆 Score: ${calcScore(sid).total}/100 &nbsp; KZ: ${sup.kz?"✅":"❌"}<br>
+       📋 Cert: ${sup.cert} &nbsp; Status: <b>${sup.status.toUpperCase()}</b><br>
+       🚚 Lead Time: ${sup.speed} days &nbsp; Rel: ${sup.rel}%<br>
+       📦 ${sup.mats.map(m=>MATERIALS[m]?.name||m).join(", ")}`
+    );
+
+    mapMarkers.push(marker);
+  }
+
+  const matEntries = Object.entries(MATERIALS);
+  const routePromises = matEntries.map(async ([matId, m]) => {
+    const sid = state.mats[matId]?.supId || bestSupplier(matId);
+    if (!sid) return;
+    const sup = SUPPLIERS[sid];
+    const isOrdered = state.mats[matId]?.ordered;
+    const coords = Math.abs(sup.lng - NPP.lng) > 60 ? [[sup.lat, sup.lng],[NPP.lat, NPP.lng]] : await getRoute(sup.lat, sup.lng, NPP.lat, NPP.lng);
+
+    const line = L.polyline(coords, {
+      color: isOrdered ? "var(--cyan)" : "#cbd5e1",
+      weight: isOrdered ? 3 : 2,
+      opacity: isOrdered ? 0.8 : 0.6,
+      dashArray: isOrdered ? null : "4, 8"
+    }).addTo(map);
+    mapLines.push(line);
+
+    if (isOrdered && coords.length > 1) {
+      const truck = animateTruckOnRoute(coords, "var(--cyan)");
+      if (truck) truckTimers.push(truck);
+    }
+  });
+  await Promise.all(routePromises);
+}
+
+// ════════════════════════════════════════════════════════
+// TIMELINE & WEATHER SIMULATION
+// ════════════════════════════════════════════════════════
+const START_DATE = new Date(2029, 0, 1);
+const CLIMATE = [
+  {t:-10,v:8, w:{Blizzard:0.20,Snow:0.35,Cloudy:0.25,Clear:0.15,Rain:0.05}},
+  {t:-8, v:7, w:{Blizzard:0.15,Snow:0.30,Cloudy:0.30,Clear:0.20,Rain:0.05}},
+  {t:2,  v:8, w:{Snow:0.15,Cloudy:0.35,Clear:0.30,Rain:0.15,Blizzard:0.05}},
+  {t:12, v:6, w:{Rain:0.20,Cloudy:0.30,Clear:0.40,Snow:0.05,Blizzard:0.05}},
+  {t:20, v:5, w:{Clear:0.50,Cloudy:0.25,Rain:0.20,Snow:0.02,Blizzard:0.03}},
+  {t:27, v:4, w:{Clear:0.65,Cloudy:0.20,Rain:0.10,Snow:0.00,Blizzard:0.05}},
+  {t:30, v:4, w:{Clear:0.70,Cloudy:0.15,Rain:0.08,Snow:0.00,Blizzard:0.07}},
+  {t:28, v:4, w:{Clear:0.65,Cloudy:0.20,Rain:0.10,Snow:0.00,Blizzard:0.05}},
+  {t:20, v:6, w:{Clear:0.40,Cloudy:0.30,Rain:0.20,Snow:0.05,Blizzard:0.05}},
+  {t:10, v:6, w:{Cloudy:0.35,Rain:0.25,Clear:0.20,Snow:0.15,Blizzard:0.05}},
+  {t:-2, v:7, w:{Snow:0.30,Cloudy:0.30,Rain:0.10,Clear:0.15,Blizzard:0.15}},
+  {t:-8, v:8, w:{Blizzard:0.18,Snow:0.35,Cloudy:0.25,Clear:0.15,Rain:0.07}},
+];
+const W_COLORS = { Clear:"#f59e0b", Cloudy:"#94a3b8", Rain:"#3b82f6", Snow:"#bae6fd", Blizzard:"#ef4444" };
+
+function seededRandom(seed) { let x = Math.sin(seed * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+function getWeather(dIdx) {
+  const c = CLIMATE[new Date(START_DATE.getTime() + dIdx * 86400000).getMonth()];
+  const r = seededRandom(dIdx); let sum = 0;
+  for (const [w, p] of Object.entries(c.w)) { sum += p; if (r < sum) return w; }
+  return "Clear";
+}
+function getTemp(dIdx) {
+  const c = CLIMATE[new Date(START_DATE.getTime() + dIdx * 86400000).getMonth()];
+  return Math.round(c.t + (seededRandom(dIdx + 99999) - 0.5) * c.v * 2);
+}
+const W_TL = Array.from({length:3650}, (_,i) => ({ weather:getWeather(i), temp:getTemp(i), date:new Date(START_DATE.getTime() + i * 86400000) }));
+
+const C_TL = [
+  {stage:1, name:"Site Preparation", startDay:0, endDay:179}, {stage:2, name:"Foundation", startDay:180, endDay:539},
+  {stage:3, name:"Structural Works", startDay:540, endDay:1079}, {stage:4, name:"Equipment Install", startDay:1080, endDay:1619},
+  {stage:5, name:"Electrical & Piping", startDay:1620, endDay:2159}, {stage:6, name:"Commissioning", startDay:2160, endDay:3649}
+];
+function getStage(dIdx) { return C_TL.find(c => dIdx >= c.startDay && dIdx <= c.endDay) || C_TL[C_TL.length - 1]; }
+
+function renderStageMarkers() {
+  document.getElementById("stage-markers").innerHTML = C_TL.map((ct, i) => {
+    const pct = (ct.startDay / 3649 * 100).toFixed(1);
+    const cls = i === 0 ? "first" : i === C_TL.length - 1 ? "last" : "";
+    return `<div class="stage-marker ${cls}" style="left:${pct}%" title="${ct.name}">Stage ${ct.stage}</div>`;
+  }).join("");
+}
+
+function renderWStrip(d) {
+  document.getElementById("weather-strip").innerHTML = Array.from({length:90}, (_,i) => {
+    const w = W_TL[Math.min(d + i, 3649)].weather;
+    const h = {Blizzard:16,Snow:12,Rain:10,Cloudy:6,Clear:4}[w];
+    return `<div class="wf-day" style="background:${W_COLORS[w]};height:${h}px"></div>`;
+  }).join("");
+}
+
+// Canonical project "today" (mirrors home.html: "Day 2912"). All views use this.
+const PROJECT_DAY_INDEX = 2911; // 0-based → displays as "Day 2912"
+let currentSliderDay = 0, playInterval = null, isPlaying = false;
+function goToDay(d) {
+  d = Math.max(0, Math.min(3649, d)); const delta = d - currentSliderDay; currentSliderDay = d;
+  document.getElementById("timeline-slider").value = d;
+  const wD = W_TL[d], st = getStage(d);
+  state.weather = wD.weather; state.stage = st.stage; state.date = wD.date; state.day = d;
+
+  if (delta > 0) for (let i = 0; i < Math.min(delta, 365); i++) _fastSim(d - delta + i);
+
+  const dayFormat = String(wD.date.getDate()).padStart(2, '0');
+  const monthFormat = String(wD.date.getMonth() + 1).padStart(2, '0');
+  const yearFormat = wD.date.getFullYear();
+
+  document.getElementById("tl-date").textContent = `${dayFormat}/${monthFormat}/${yearFormat}`;
+  document.getElementById("tl-daynum").textContent = `Day ${d + 1}`;
+  document.getElementById("tl-stage").textContent = `STAGE ${st.stage} · ${st.name.toUpperCase()}`;
+  document.getElementById("tl-year").textContent = yearFormat;
+
+  document.getElementById("w-name").textContent = wD.weather.toUpperCase();
+  document.getElementById("w-name").style.color = W_COLORS[wD.weather];
+  document.getElementById("w-temp").textContent = `${wD.temp > 0 ? "+" : ""}${wD.temp}°C`;
+
+  // Sync current day to localStorage so the Summary Dashboard can read it
+  try {
+    localStorage.setItem('npp_current_day', d + 1);           // 1-based
+    localStorage.setItem('npp_current_stage', st.stage);
+    localStorage.setItem('npp_current_stage_name', st.name);
+    localStorage.setItem('npp_current_date', `${dayFormat}/${monthFormat}/${yearFormat}`);
+  } catch(e) {}
+
+  document.querySelectorAll(".stage-marker").forEach((el, i) => el.classList.toggle("active", i + 1 === st.stage));
+  renderWStrip(d); renderAll();
+  clearTimeout(drawMapDebounce); drawMapDebounce = setTimeout(() => drawMap(), 400);
+}
+
+let drawMapDebounce = null;
+function _fastSim(dIdx) {
+  const wD = W_TL[Math.min(dIdx, 3649)], st = getStage(dIdx);
+  for (const [mId, ms] of Object.entries(state.mats)) {
+    const m = MATERIALS[mId];
+    const dailyPct = m.rate[Math.min(st.stage - 1, 5)] * (SEASON_FACTORS[wD.date.getMonth() + 1]||1) * (WEATHER_FACTORS[wD.weather]||1) * (consumptionLimits[mId]||1) * 0.98;
+    ms.stock = Math.max(0, ms.stock - dailyPct);
+    if (ms.ordered) {
+      ms.orderDays--;
+      if (ms.orderDays <= 0) { ms.stock = Math.min(100, ms.stock + Math.min(82, 100 - ms.stock)); ms.ordered = false; ms.orderDays = 0; ms.supId = null; delete consumptionLimits[mId]; }
+    }
+    if (!ms.ordered && ms.stock < m.rop) {
+      const sid = bestSupplier(mId);
+      if (sid) { ms.ordered = true; ms.orderDays = Math.max(1, Math.round(SUPPLIERS[sid].speed * (WEATHER_FACTORS[wD.weather]||1))); ms.supId = sid; }
+    }
+    if (ms.stock <= 0 && !ms.ordered) {
+      const sid = bestSupplier(mId);
+      if (sid) { ms.ordered = true; ms.orderDays = Math.max(1, Math.round(SUPPLIERS[sid].speed)); ms.supId = sid; ms.stock = 0; }
+    }
+  }
+}
+
+function onSliderInput(v) { goToDay(parseInt(v)); }
+function sliderStep(delta) { goToDay(currentSliderDay + delta); }
+function togglePlay() {
+  isPlaying = !isPlaying; document.getElementById("play-btn").textContent = isPlaying ? "Pause" : "Play";
+  document.getElementById("play-btn").classList.toggle("active", isPlaying);
+  if (isPlaying) playInterval = setInterval(() => { if (currentSliderDay >= 3649) togglePlay(); else goToDay(currentSliderDay + 7); }, 150);
+  else { clearInterval(playInterval); drawMap(); }
+}
+
+renderStageMarkers(); goToDay(PROJECT_DAY_INDEX);
+</script>
+{% endblock %}

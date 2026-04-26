@@ -1,0 +1,510 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* === 1. GLOBAL MAIN RESET === */
+    /* Remove margins, width limits and make main full screen */
+    main { padding: 0 !important; overflow: hidden !important; background-color: #f1f0eb !important; }
+    main .max-w-7xl { max-width: 100% !important; margin: 0 !important; height: 100% !important; display: flex; flex-direction: column; }
+    main .absolute.inset-0.bg-\[radial-gradient...\] { display: none !important; }
+
+    /* Custom Scrollbars (Light Theme) */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d4e9e2; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #00754A; }
+
+    /* Range Slider */
+    input[type=range] { accent-color: #00754A; cursor: pointer; }
+
+    /* === 2. BUTTON & KPI STYLES === */
+    .btn { padding: 6px 14px; border-radius: 999px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 11px; cursor: pointer; border: 1px solid #d4e9e2; background: white; color: #1E3932; transition: all 0.15s; white-space: nowrap; }
+    .btn:hover { background: #d4e9e2; color: #006241; border-color: #d4e9e2; }
+    .btn.active { background: #00754A; border-color: #00754A; color: white; box-shadow: 0 2px 4px rgba(0,117,74,0.2); }
+
+    /* === 3. GANTT ELEMENTS STYLES === */
+    /* Left Panel (Phases) */
+    .phase-item { padding: 12px 16px; border-bottom: 1px solid #f1f0eb; cursor: pointer; transition: background 0.1s; background: white; }
+    .phase-item:hover { background: #f8fafc; }
+    .phase-item.selected { background: #d4e9e2; border-left: 3px solid #00754A; padding-left: 13px; }
+    .pi-name { font-size: 12px; color: #006241; font-weight: 700; margin-bottom: 4px; line-height: 1.2; }
+    .pi-bar { height: 4px; border-radius: 2px; margin-bottom: 4px; transition: width 0.5s ease; }
+    .pi-meta { font-size: 10px; color: #1E3932; opacity: 0.7; display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+
+    /* Time Header */
+    .time-years { display: flex; border-bottom: 1px solid #d4e9e2; }
+    .time-year { border-right: 1px solid #d4e9e2; text-align: center; font-size: 11px; color: #1E3932; padding: 6px 0; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .time-quarters { display: flex; border-bottom: 1px solid #d4e9e2; }
+    .time-q { border-right: 1px solid #d4e9e2; text-align: center; font-size: 10px; color: #1E3932; opacity: 0.8; padding: 4px 0; font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+
+    /* Gantt Rows */
+    .g-row { display: flex; align-items: stretch; border-bottom: 1px solid #f1f0eb; min-height: 48px; transition: background 0.1s; background: white; }
+    .g-row:hover { background: #f8fafc; }
+    .g-row.selected { background: #d4e9e2; }
+    .g-row.critical .g-label-name { color: #ef4444; }
+
+    .g-label-cell { width: 260px; flex-shrink: 0; padding: 8px 16px; border-right: 1px solid #d4e9e2; display: flex; flex-direction: column; justify-content: center; background: white; position: sticky; left: 0; z-index: 5; }
+    .g-label-name { font-size: 11px; color: #1E3932; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+    .g-label-sub { font-size: 10px; color: #1E3932; opacity: 0.6; margin-top: 2px; font-weight: 500; }
+
+    /* Background Grid */
+    .g-track { flex: 1; position: relative; background: repeating-linear-gradient(90deg, transparent, transparent calc(var(--qw) - 1px), #f1f0eb calc(var(--qw) - 1px), #f1f0eb var(--qw)); }
+
+    /* Task Bars */
+    .g-bar { position: absolute; top: 10px; height: 28px; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; font-size: 10px; font-weight: 700; cursor: pointer; transition: all 0.4s ease; overflow: hidden; white-space: nowrap; border: 1px solid transparent; color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .g-bar:hover { filter: brightness(1.1); z-index: 10; box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+    .g-bar .bar-label { pointer-events: none; z-index: 2; text-shadow: 0 1px 2px rgba(0,0,0,0.4); font-family: 'Inter', sans-serif; }
+    .g-bar .bar-progress { position: absolute; left: 0; top: 0; bottom: 0; opacity: 0.2; transition: width 0.5s ease; z-index: 1; }
+
+    /* Milestones & Today Marker */
+    .g-milestone { position: absolute; top: 14px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid; transform: translateX(-8px); z-index: 3; cursor: pointer; transition: left 0.4s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    .today-col { position: absolute; top: 0; bottom: 0; width: 2px; background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.5); z-index: 4; pointer-events: none; }
+    .today-label { position: absolute; top: 0; font-size: 9px; background: #ef4444; color: #fff; padding: 2px 6px; border-radius: 0 0 4px 0; font-weight: bold; pointer-events: none; font-family: 'JetBrains Mono', monospace; }
+
+    /* Detail Panel (Bottom) */
+    .detail-bar { height: 140px; transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1); background: white; border-top: 1px solid #d4e9e2; }
+    .detail-bar.collapsed { height: 0; border-top: none; }
+    .d-cell { padding: 16px; border-right: 1px solid #f1f0eb; }
+    .d-cell:last-child { border-right: none; }
+    .d-label { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #1E3932; opacity: 0.6; margin-bottom: 8px; font-weight: 700; }
+    .d-val { font-size: 16px; font-weight: 800; color: #006241; margin-bottom: 4px; line-height: 1.2; }
+    .d-sub { font-size: 11px; color: #1E3932; opacity: 0.8; font-weight: 500; }
+</style>
+
+<div class="flex flex-col h-full w-full bg-[#f1f0eb] text-[#1E3932]">
+
+    <div class="flex items-center gap-4 px-6 py-3 border-b border-[#d4e9e2] bg-white shrink-0 flex-wrap z-20 shadow-sm">
+        <div class="flex items-center gap-3">
+            <span class="text-[10px] font-bold text-[#1E3932] opacity-70 uppercase tracking-widest whitespace-nowrap">Delay Simulation</span>
+            <input type="range" min="0" max="18" value="0" id="delay-sl" oninput="applyDelay(+this.value)" class="w-32">
+            <span class="text-xs font-mono font-bold text-[#00754A] min-w-[60px]" id="delay-lbl">+0 mo.</span>
+        </div>
+
+        <div class="w-px h-6 bg-[#d4e9e2]"></div>
+
+        <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold text-[#1E3932] opacity-70 uppercase tracking-widest mr-2">View</span>
+            <button class="btn" id="btn-cp" onclick="toggleCP()">Critical Path</button>
+            <button class="btn active" id="btn-ms" onclick="toggleMS()">Milestones</button>
+            <button class="btn" onclick="collapseAll()">Collapse All</button>
+            <button class="btn" onclick="expandAll()">Expand All</button>
+        </div>
+
+        <div class="w-px h-6 bg-[#d4e9e2] hidden md:block"></div>
+
+        <div class="flex flex-wrap gap-2 ml-auto">
+            <div class="bg-red-50 border border-red-200 rounded-full px-4 py-1.5 text-[11px] font-bold text-red-600 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse inline-block"></span>
+                TODAY: <span id="kpi-today-day" class="font-mono font-black ml-1">Day 2912</span>
+                <span id="kpi-today-stage" class="font-mono font-normal opacity-70">· Stage 6</span>
+            </div>
+            <div class="bg-[#f1f0eb] border border-[#d4e9e2] rounded-full px-4 py-1.5 text-[11px] font-bold text-[#1E3932]">
+                Grid Connection: <span id="kpi-grid" class="font-mono font-black text-[#006241] ml-1">2038 Q4</span>
+            </div>
+            <div class="bg-[#f1f0eb] border border-[#d4e9e2] rounded-full px-4 py-1.5 text-[11px] font-bold text-[#1E3932]">
+                Critical Path: <span id="kpi-cp" class="font-mono font-black text-red-500 ml-1">R1 → TH1 → SWY</span>
+            </div>
+            <div class="bg-[#f1f0eb] border border-[#d4e9e2] rounded-full px-4 py-1.5 text-[11px] font-bold text-[#1E3932]">
+                Duration: <span id="kpi-dur" class="font-mono font-black text-[#006241] ml-1">132 mo.</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex flex-1 overflow-hidden relative">
+
+        <div class="w-[260px] shrink-0 border-r border-[#d4e9e2] bg-white overflow-y-auto flex flex-col z-10 custom-scrollbar shadow-[2px_0_10px_rgba(0,0,0,0.02)]">
+            <div class="sticky top-0 bg-[#f1f0eb] px-4 py-3 text-[10px] font-bold text-[#006241] uppercase tracking-widest border-b border-[#d4e9e2] z-20">Project Phases</div>
+            <div id="phase-list" class="flex-1 pb-10"></div>
+        </div>
+
+        <div class="flex-1 overflow-auto relative bg-white custom-scrollbar" id="gantt-area">
+            <div class="min-w-[1200px]" id="gantt-inner">
+                <div class="sticky top-0 z-30 bg-white border-b border-[#d4e9e2] shadow-sm" id="time-header"></div>
+                <div class="relative" id="gantt-rows"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="detail-bar" class="detail-bar collapsed shrink-0 z-20 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+        <div class="grid grid-cols-1 md:grid-cols-4 h-full" id="detail-inner"></div>
+    </div>
+</div>
+
+<script>
+// ============================================================================
+// ENGLISH DATA & GANTT LOGIC
+// ============================================================================
+
+const START_YEAR = 2029, START_MONTH = 1;
+const TOTAL_MONTHS = 132;
+// PROJECT_DAY is the canonical "today" used across home / 3D / 4D / logistics.
+// Day 1 = 1 Jan START_YEAR. Day 2912 ≈ end of 2036 ≈ month index 96 (zero-based).
+const PROJECT_DAY = 2912;
+let TODAY_OFFSET = Math.round((PROJECT_DAY - 1) / (365.25 / 12)); // months elapsed — updated by syncTodayFromStorage()
+const Q_WIDTH = 48;
+const M_WIDTH = Q_WIDTH / 3;
+
+const PHASES = [
+  {
+    id:'P0', name:'Zero Cycle & Preparation', color:'#00754A', tasks:[
+      {id:'T01', name:'Site Clearance & Earthworks', sub:'KazDorStroy', start:0, dur:8, status:'active', progress:45, critical:false, workers:800, cost:'$14M'},
+      {id:'T02', name:'Temporary Roads & Fencing', sub:'KazDorStroy', start:1, dur:5, status:'active', progress:60, critical:false, workers:300, cost:'$6M'},
+      {id:'T03', name:'Temporary Power Supply', sub:'KEGOC', start:0, dur:3, status:'complete', progress:100, critical:false, workers:60, cost:'$3M'},
+      {id:'T04', name:'Builders Dormitory (2000 pax)', sub:'KazBuilding', start:2, dur:7, status:'active', progress:75, critical:false, workers:200, cost:'$20M'},
+      {id:'T05', name:'Railway Branch Construction', sub:'KTZ', start:3, dur:10, status:'active', progress:40, critical:false, workers:350, cost:'$25M'},
+    ]
+  },
+  {
+    id:'P1', name:'Foundations & Civil Works', color:'#006241', tasks:[
+      {id:'T10', name:'Reactor Building Foundation Slab', sub:'Rosatom / KazBuilding', start:8, dur:12, status:'planned', progress:0, critical:true, workers:1200, cost:'$95M'},
+      {id:'T11', name:'Turbine Hall Foundation', sub:'KazBuilding Cons.', start:10, dur:10, status:'planned', progress:0, critical:false, workers:600, cost:'$45M'},
+      {id:'T12', name:'Cooling Tower Foundations ×2', sub:'GEA Group', start:9, dur:8, status:'planned', progress:0, critical:false, workers:400, cost:'$32M'},
+      {id:'T13', name:'Auxiliary Buildings Foundations', sub:'KazBuilding', start:11, dur:9, status:'planned', progress:0, critical:false, workers:350, cost:'$34M'},
+      {id:'T14', name:'Underground Utilities', sub:'KazHydro / KEGOC', start:8, dur:14, status:'planned', progress:0, critical:false, workers:250, cost:'$40M'},
+    ]
+  },
+  {
+    id:'P2', name:'Reactor Island & Turbine Hall', color:'#ef4444', tasks:[
+      {id:'T20', name:'Containment Shell Unit 1', sub:'Rosatom / AtomStroyExport', start:20, dur:28, status:'planned', progress:0, critical:true, workers:1800, cost:'$480M'},
+      {id:'T21', name:'VVER-1200 Reactor Vessel Installation', sub:'AtomMash Volgodonsk', start:42, dur:10, status:'planned', progress:0, critical:true, workers:600, cost:'$200M'},
+      {id:'T22', name:'Steam Generators Installation ×4', sub:'ZiO-Podolsk', start:44, dur:12, status:'planned', progress:0, critical:true, workers:400, cost:'$270M'},
+      {id:'T23', name:'Primary Loop Piping', sub:'TechnoAvangard', start:46, dur:14, status:'planned', progress:0, critical:true, workers:500, cost:'$110M'},
+      {id:'T24', name:'Control & Protection System (CPS)', sub:'OKBM Afrikantov', start:50, dur:10, status:'planned', progress:0, critical:true, workers:200, cost:'$75M'},
+      {id:'T30', name:'Turbine Hall Steel Structures', sub:'KazBuilding / Power Machines', start:20, dur:20, status:'planned', progress:0, critical:false, workers:900, cost:'$135M'},
+      {id:'T31', name:'Turbogenerator Installation', sub:'Power Machines SPb', start:56, dur:12, status:'planned', progress:0, critical:false, workers:400, cost:'$390M'},
+    ]
+  },
+  {
+    id:'P3', name:'Cooling Towers & Water Supply', color:'#1E3932', tasks:[
+      {id:'T40', name:'Cooling Tower Shells Unit 1 (×2)', sub:'GEA Group / Local Concrete', start:17, dur:22, status:'planned', progress:0, critical:false, workers:600, cost:'$110M'},
+      {id:'T41', name:'Dome Sections Crane Installation', sub:'Liebherr / KazStroy', start:30, dur:12, status:'planned', progress:0, critical:false, workers:280, cost:'$60M'},
+      {id:'T42', name:'Circulating Water & Condenser Piping', sub:'KazakhmysGroup', start:36, dur:12, status:'planned', progress:0, critical:false, workers:300, cost:'$52M'},
+      {id:'T43', name:'Water Intake Reconstruction (Lake Balkhash)', sub:'KazHydro', start:14, dur:10, status:'planned', progress:0, critical:false, workers:180, cost:'$35M'},
+      {id:'T44', name:'Demineralized Water System', sub:'Veolia', start:28, dur:10, status:'planned', progress:0, critical:false, workers:120, cost:'$26M'},
+    ]
+  },
+  {
+    id:'P4', name:'Electrical & Safety Systems', color:'#00754A', tasks:[
+      {id:'T50', name:'Emergency Core Cooling System (ECCS)', sub:'Rosatom', start:48, dur:14, status:'planned', progress:0, critical:true, workers:350, cost:'$125M'},
+      {id:'T51', name:'Emergency Diesel Generators', sub:'Caterpillar / Local', start:16, dur:12, status:'planned', progress:0, critical:false, workers:120, cost:'$48M'},
+      {id:'T52', name:'Spent Fuel Storage & Pool', sub:'TVEL / KazAtomProm', start:24, dur:18, status:'planned', progress:0, critical:false, workers:280, cost:'$85M'},
+      {id:'T53', name:'I&C System (TELEPERM XS)', sub:'Framatome / Rosatom', start:56, dur:18, status:'planned', progress:0, critical:true, workers:450, cost:'$320M'},
+      {id:'T32', name:'1300 MVA Transformers Installation', sub:'ABB / KEGOC', start:64, dur:8, status:'planned', progress:0, critical:false, workers:150, cost:'$95M'},
+      {id:'T33', name:'500 kV Switchyard', sub:'ABB / KEGOC', start:60, dur:14, status:'planned', progress:0, critical:false, workers:200, cost:'$105M'},
+      {id:'T34', name:'Cable Routing', sub:'KazElectroCable', start:52, dur:16, status:'planned', progress:0, critical:false, workers:600, cost:'$75M'},
+    ]
+  },
+  {
+    id:'P5', name:'Commissioning & Startup', color:'#f59e0b', tasks:[
+      {id:'T60', name:'Cold Hydrostatic Testing', sub:'Rosatom QA', start:74, dur:7, status:'planned', progress:0, critical:true, workers:300, cost:'$24M'},
+      {id:'T61', name:'Hot Functional Testing', sub:'Rosatom QA', start:81, dur:9, status:'planned', progress:0, critical:true, workers:400, cost:'$35M'},
+      {id:'T62', name:'Fuel Loading & Zero Power Testing', sub:'IAEA / Rosatom', start:90, dur:5, status:'planned', progress:0, critical:true, workers:250, cost:'$18M'},
+      {id:'T63', name:'Power Ascension Testing', sub:'KAEC / Rosatom', start:95, dur:10, status:'planned', progress:0, critical:true, workers:320, cost:'$30M'},
+      {id:'T64', name:'Synchronization with National Grid', sub:'KEGOC', start:105, dur:3, status:'planned', progress:0, critical:true, workers:80, cost:'$6M'},
+    ]
+  },
+];
+
+const MILESTONES = [
+  {id:'M1', name:'First Concrete', month:8, color:'#00754A'},
+  {id:'M2', name:'Reactor Dome', month:36, color:'#ef4444'},
+  {id:'M3', name:'Reactor Vessel Installation', month:46, color:'#ef4444'},
+  {id:'M4', name:'Turbogenerator Ready', month:70, color:'#1E3932'},
+  {id:'M5', name:'Cold Tests', month:78, color:'#f59e0b'},
+  {id:'M6', name:'First Fuel', month:92, color:'#006241'},
+  {id:'M7', name:'Grid Synchronization', month:108, color:'#00754A'},
+];
+
+let delayMonths = 0;
+let showCP = false;
+let showMS = true;
+let selectedTask = null;
+let collapsedPhases = new Set();
+
+function monthToOffset(m){ return m * M_WIDTH; }
+
+function formatMonth(offset){
+  const total = START_MONTH - 1 + offset;
+  const y = START_YEAR + Math.floor(total/12);
+  const mo = total % 12;
+  return `${y} Q${Math.ceil((mo+1)/3)}`;
+}
+
+function absoluteMonth(relMonth){
+  return START_MONTH - 1 + relMonth;
+}
+
+function buildTimeHeader(){
+  const el = document.getElementById('time-header');
+  const years = [];
+  for(let y=0; y<12; y++){
+    const yr = START_YEAR + y;
+    years.push({yr, qs: 4});
+  }
+  const totalW = TOTAL_MONTHS * M_WIDTH;
+  el.innerHTML = `<div style="display:flex;margin-left:260px">
+    <div class="time-years" style="width:${totalW}px">
+      ${years.map(({yr,qs})=>`<div class="time-year" style="width:${qs*Q_WIDTH}px">${yr}</div>`).join('')}
+    </div>
+  </div>
+  <div style="display:flex;margin-left:260px">
+    <div class="time-quarters" style="width:${totalW}px">
+      ${Array.from({length:Math.ceil(TOTAL_MONTHS/3)},(_,i)=>`<div class="time-q" style="width:${Q_WIDTH}px">Q${(i%4)+1}</div>`).join('')}
+    </div>
+  </div>`;
+  el.style.setProperty('--qw', Q_WIDTH+'px');
+}
+
+function effectiveStart(task){
+  if(task.critical) return task.start + delayMonths;
+  return task.start + (delayMonths > 6 ? Math.round(delayMonths*0.3) : 0);
+}
+
+function buildGantt(){
+  const rowsEl = document.getElementById('gantt-rows');
+  const phaseListEl = document.getElementById('phase-list');
+  rowsEl.innerHTML = '';
+  phaseListEl.innerHTML = '';
+  const totalW = TOTAL_MONTHS * M_WIDTH;
+
+  const todayEl = document.createElement('div');
+  todayEl.className = 'today-col';
+  todayEl.style.left = (260 + TODAY_OFFSET*M_WIDTH)+'px';
+  todayEl.innerHTML = '<div class="today-label">TODAY</div>';
+  rowsEl.appendChild(todayEl);
+
+  PHASES.forEach(phase => {
+    const phaseProgress = Math.round(
+      phase.tasks.reduce((s,t)=>s+t.progress,0)/phase.tasks.length
+    );
+    const phaseEl = document.createElement('div');
+    phaseEl.className = 'phase-item';
+    phaseEl.id = 'ps-'+phase.id;
+    phaseEl.innerHTML = `<div class="pi-name">${phase.name}</div>
+      <div class="pi-bar" style="width:${phaseProgress}%;background:${phase.color}"></div>
+      <div class="pi-meta"><span>${phaseProgress}%</span><span>${phase.tasks.length} tasks</span></div>`;
+    phaseEl.onclick = () => scrollToPhase(phase.id);
+    phaseListEl.appendChild(phaseEl);
+
+    if(!collapsedPhases.has(phase.id)){
+      const phRow = document.createElement('div');
+      phRow.className = 'g-row';
+      phRow.id = 'ph-'+phase.id;
+      phRow.style.background = '#f8fafc';
+      phRow.innerHTML = `
+        <div class="g-label-cell" style="cursor:pointer" onclick="togglePhase('${phase.id}')">
+          <div class="g-label-name" style="color:${phase.color};font-size:12px">▼ ${phase.name.toUpperCase()}</div>
+        </div>
+        <div class="g-track" style="width:${totalW}px;--qw:${Q_WIDTH}px"></div>`;
+      rowsEl.appendChild(phRow);
+
+      phase.tasks.forEach(task => {
+        const row = document.createElement('div');
+        const isCritical = task.critical && showCP;
+        row.className = 'g-row' + (isCritical?' critical':'') + (selectedTask?.id===task.id?' selected':'');
+        row.id = 'row-'+task.id;
+
+        const es = effectiveStart(task);
+        const barL = es * M_WIDTH;
+        const barW = task.dur * M_WIDTH - 2;
+
+        const statusColor = task.status==='complete'?'#006241':task.status==='active'?'#f59e0b':'#cbd5e1';
+        const borderColor = task.status==='complete'?'#00754A':task.status==='active'?'#fbbf24':'#94a3b8';
+        const textColor = task.status==='planned'?'#1E3932':'#ffffff';
+
+        row.innerHTML = `
+          <div class="g-label-cell">
+            <div class="g-label-name">${task.name}</div>
+            <div class="g-label-sub">${task.sub}</div>
+          </div>
+          <div class="g-track" style="width:${totalW}px;--qw:${Q_WIDTH}px;position:relative">
+            <div class="g-bar" style="left:${barL}px;width:${barW}px;background:${statusColor};border-color:${borderColor};color:${textColor};" onclick="selectTask('${task.id}','${phase.id}')">
+              <div class="bar-progress" style="width:${task.progress}%;background:${borderColor}"></div>
+              <span class="bar-label">${task.name.split(' ').slice(0,3).join(' ')}</span>
+            </div>
+          </div>`;
+        rowsEl.appendChild(row);
+      });
+    } else {
+      const phRow = document.createElement('div');
+      phRow.className = 'g-row';
+      phRow.id = 'ph-'+phase.id;
+      phRow.style.background='#f8fafc';
+      phRow.innerHTML = `
+        <div class="g-label-cell" style="cursor:pointer" onclick="togglePhase('${phase.id}')">
+          <div class="g-label-name" style="color:${phase.color};font-size:12px">▶ ${phase.name.toUpperCase()}</div>
+        </div>
+        <div class="g-track" style="width:${totalW}px;--qw:${Q_WIDTH}px"></div>`;
+      rowsEl.appendChild(phRow);
+    }
+  });
+
+  if(showMS){
+    MILESTONES.forEach(ms => {
+      const eff = ms.month + (ms.month > TODAY_OFFSET ? Math.round(delayMonths*0.5) : 0);
+      const x = 260 + eff*M_WIDTH;
+      const el = document.createElement('div');
+      el.className = 'g-milestone';
+      el.style.left = x+'px';
+      el.style.borderColor = ms.color;
+      el.style.background = ms.color+'40';
+      el.title = ms.name + ' · ' + formatMonth(eff);
+      rowsEl.appendChild(el);
+    });
+  }
+
+  const gridMonth = 108 + Math.round(delayMonths * 0.8);
+  const totalM = parseInt(START_MONTH-1+gridMonth);
+  const gridYear = START_YEAR + Math.floor(totalM/12);
+  const gridQ = Math.ceil(((totalM%12)+1)/3);
+  document.getElementById('kpi-grid').textContent = `${gridYear} Q${gridQ}`;
+
+  const kpiGridEl = document.getElementById('kpi-grid');
+  if(delayMonths > 0) {
+      kpiGridEl.classList.remove('text-[#006241]');
+      kpiGridEl.classList.add('text-red-500');
+  } else {
+      kpiGridEl.classList.remove('text-red-500');
+      kpiGridEl.classList.add('text-[#006241]');
+  }
+
+  document.getElementById('kpi-dur').textContent = (TOTAL_MONTHS + Math.round(delayMonths*.8))+' mo.';
+}
+
+function applyDelay(v){
+  delayMonths = v;
+  document.getElementById('delay-lbl').textContent = v===0?'+0 mo.':`+${v} mo.`;
+  buildGantt();
+}
+
+function toggleCP(){
+  showCP = !showCP;
+  document.getElementById('btn-cp').classList.toggle('active', showCP);
+  buildGantt();
+}
+
+function toggleMS(){
+  showMS = !showMS;
+  document.getElementById('btn-ms').classList.toggle('active', !showMS);
+  buildGantt();
+}
+
+function togglePhase(id){
+  if(collapsedPhases.has(id)) collapsedPhases.delete(id);
+  else collapsedPhases.add(id);
+  buildGantt();
+}
+
+function collapseAll(){ PHASES.forEach(p=>collapsedPhases.add(p.id)); buildGantt(); }
+function expandAll(){ collapsedPhases.clear(); buildGantt(); }
+
+function scrollToPhase(id){
+  const el = document.getElementById('ph-'+id);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'});
+  document.querySelectorAll('.phase-item').forEach(e=>e.classList.remove('selected'));
+  document.getElementById('ps-'+id).classList.add('selected');
+}
+
+function selectTask(taskId, phaseId){
+  selectedTask = null;
+  PHASES.forEach(p=>p.tasks.forEach(t=>{ if(t.id===taskId) selectedTask=t; }));
+  if(!selectedTask) return;
+
+  const phase = PHASES.find(p=>p.id===phaseId);
+  const statusColor = selectedTask.status==='complete'?'#006241':selectedTask.status==='active'?'#f59e0b':'#1E3932';
+  const es = effectiveStart(selectedTask);
+
+  document.getElementById('detail-inner').innerHTML = `
+    <div class="d-cell">
+      <div class="d-label">Task</div>
+      <div class="d-val">${selectedTask.name}</div>
+      <div class="d-sub" style="color:${statusColor}; font-weight:bold">${{complete:'COMPLETED',active:'ACTIVE',planned:'PLANNED'}[selectedTask.status]||selectedTask.status.toUpperCase()} <span style="font-weight:500; opacity:0.6; color:#1E3932">· ${selectedTask.progress}% completed</span></div>
+    </div>
+    <div class="d-cell">
+      <div class="d-label">Timeline</div>
+      <div class="d-val">${formatMonth(es)}</div>
+      <div class="d-sub">Start → ${formatMonth(es+selectedTask.dur)} · ${selectedTask.dur} mo.${delayMonths>0&&selectedTask.critical?` <span style="color:#ef4444; font-weight:bold"> (+${delayMonths}m delay)</span>`:''}
+      </div>
+    </div>
+    <div class="d-cell">
+      <div class="d-label">Resources</div>
+      <div class="d-val" style="color:#00754A">${selectedTask.workers.toLocaleString()} <span style="font-size:11px; font-weight:600; color:#1E3932; opacity:0.6">prs.</span></div>
+      <div class="d-sub">Peak Workforce · Cost Est.: <span style="font-weight:700; color:#1E3932">${selectedTask.cost}</span></div>
+    </div>
+    <div class="d-cell">
+      <div class="d-label">Contractor</div>
+      <div class="d-val" style="font-size:14px; font-family:'JetBrains Mono', monospace">${selectedTask.sub}</div>
+      <div class="d-sub">${selectedTask.critical?'<span style="color:#ef4444; font-weight:bold">⚠ Critical Path</span>':'Non-Critical Path'}</div>
+    </div>`;
+  document.getElementById('detail-bar').classList.remove('collapsed');
+
+  document.querySelectorAll('.g-row').forEach(r=>r.classList.remove('selected'));
+  const rowEl = document.getElementById('row-'+taskId);
+  if(rowEl){ rowEl.classList.add('selected'); rowEl.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+}
+
+// ----------------------------------------------------------------------------
+// Derive task status & progress from TODAY_OFFSET (single source of truth).
+// Keeps complete/active/planned counts coherent with the project "today" so
+// the 4D Gantt agrees with the 3D summary (8 active, 4 complete, etc.) and
+// with the dashboard "Day 2912" marker.
+// ----------------------------------------------------------------------------
+function recomputeTaskStates(){
+  PHASES.forEach(phase => {
+    phase.tasks.forEach(t => {
+      const end = t.start + t.dur;
+      if(end <= TODAY_OFFSET){
+        t.status = 'complete';
+        t.progress = 100;
+      } else if(t.start >= TODAY_OFFSET){
+        t.status = 'planned';
+        t.progress = 0;
+      } else {
+        t.status = 'active';
+        t.progress = Math.max(1, Math.min(99,
+          Math.round(((TODAY_OFFSET - t.start) / t.dur) * 100)));
+      }
+    });
+  });
+}
+
+// init
+recomputeTaskStates();
+buildTimeHeader();
+buildGantt();
+
+// ── Sync TODAY marker from 5D Logistics localStorage ─────────────────────
+const STAGE_NAMES_4D = ['','Site Preparation','Civil Works','MEP Installation','Systems Integration','Pre-Commissioning','Commissioning'];
+let _lastSyncedDay = null;
+function syncTodayFromStorage() {
+  try {
+    const d = parseInt(localStorage.getItem('npp_current_day'));
+    const s = parseInt(localStorage.getItem('npp_current_stage'));
+    const sName = localStorage.getItem('npp_current_stage_name') || STAGE_NAMES_4D[s] || '';
+    if (!d || isNaN(d) || d === _lastSyncedDay) return;
+    _lastSyncedDay = d;
+    const newOffset = Math.round((d - 1) / (365.25 / 12));
+    TODAY_OFFSET = newOffset;
+    recomputeTaskStates();
+    buildGantt();
+    // scroll TODAY marker into view
+    const todayCol = document.querySelector('.today-col');
+    if (todayCol) {
+      const ganttScroll = document.getElementById('gantt-area');
+      if (ganttScroll) {
+        const left = parseInt(todayCol.style.left) - ganttScroll.clientWidth / 2;
+        ganttScroll.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+      }
+    }
+    // update header chip
+    const dayEl = document.getElementById('kpi-today-day');
+    const stageEl = document.getElementById('kpi-today-stage');
+    if (dayEl)   dayEl.textContent = `Day ${d.toLocaleString()}`;
+    if (stageEl) stageEl.textContent = `· Stage ${s}${sName ? ' · ' + sName : ''}`;
+  } catch(e) {}
+}
+syncTodayFromStorage();
+window.addEventListener('storage', syncTodayFromStorage);
+setInterval(syncTodayFromStorage, 1000);
+</script>
+{% endblock %}

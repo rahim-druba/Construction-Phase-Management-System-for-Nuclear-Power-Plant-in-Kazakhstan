@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NPP-KZ | 6D Control System</title>
+
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23006241' stroke-width='2'><path stroke-linecap='round' stroke-linejoin='round' d='M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z' stroke-dasharray='2 3'/><ellipse cx='12' cy='12' rx='8' ry='3' transform='rotate(45 12 12)'/><ellipse cx='12' cy='12' rx='8' ry='3' transform='rotate(-45 12 12)'/><circle cx='12' cy='12' r='1.5' fill='%23006241' stroke='none'/></svg>">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Pill-style sidebar links */
+        .sidebar-link {
+            transition: all 0.2s ease-in-out;
+            border-radius: 9999px;
+            margin: 0.25rem 1rem;
+            padding: 0.75rem 1.25rem;
+            color: #1E3932;
+            display: flex;
+            align-items: center;
+        }
+
+        .sidebar-link:hover {
+            background-color: #d4e9e2;
+            color: #006241;
+        }
+
+        .active-link {
+            background-color: #00754A;
+            color: #ffffff !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 117, 74, 0.2);
+        }
+
+        /* Clean Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-[#f1f0eb] text-[#1E3932] flex flex-col md:flex-row h-screen overflow-hidden">
+
+    <header class="md:hidden flex items-center justify-between bg-white p-4 shadow-sm border-b border-gray-200 z-40 shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#00754A] to-[#004d33] flex items-center justify-center shadow-md text-white">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke-dasharray="2 3"/>
+                    <ellipse cx="12" cy="12" rx="8" ry="3" transform="rotate(45 12 12)"/>
+                    <ellipse cx="12" cy="12" rx="8" ry="3" transform="rotate(-45 12 12)"/>
+                    <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-base font-bold text-[#006241] tracking-wider leading-tight">NPP-KZ</h1>
+            </div>
+        </div>
+
+        <button onclick="toggleSidebar()" class="text-[#006241] hover:text-[#00754A] focus:outline-none p-2 bg-[#d4e9e2] rounded-lg">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+        </button>
+    </header>
+
+    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/40 z-40 hidden opacity-0 transition-opacity duration-300 md:hidden backdrop-blur-sm"></div>
+
+    <aside id="sidebar" class="fixed md:relative top-0 left-0 z-50 w-64 h-full bg-white text-[#1E3932] flex flex-col shadow-[2px_0_15px_rgba(0,0,0,0.03)] border-r border-gray-200 transition-transform duration-300 transform -translate-x-full md:translate-x-0 shrink-0">
+
+        <div class="h-20 flex items-center justify-between px-6 border-b border-gray-100 shrink-0 bg-white">
+            <div class="flex items-center">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00754A] to-[#004d33] flex items-center justify-center mr-3 shadow-lg shadow-green-900/20 text-white relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke-dasharray="2 3"/>
+                        <ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(45 12 12)"/>
+                        <ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(-45 12 12)"/>
+                        <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold text-[#006241] tracking-tight leading-none">NPP-KZ</h1>
+                    <p class="text-[9px] text-[#00754A] uppercase tracking-[0.15em] font-mono font-bold mt-0.5">6D Control System</p>
+                </div>
+            </div>
+
+            <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-[#006241]">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto py-4">
+
+            <p class="px-8 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 mt-2">Monitoring</p>
+
+            <a href="{% url 'home' %}" class="sidebar-link {% if request.resolver_match.url_name == 'home' %}active-link{% endif %}">
+                <svg class="w-5 h-5 mr-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                </svg>
+                <span class="text-sm font-semibold">Summary Dashboard</span>
+            </a>
+
+            <a href="{% url 'view_3d' %}" class="sidebar-link {% if request.resolver_match.url_name == 'view_3d' %}active-link{% endif %}">
+                <svg class="w-5 h-5 mr-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path>
+                </svg>
+                <span class="text-sm font-semibold">3D Spatial Plan</span>
+            </a>
+
+            <a href="{% url 'view_4d' %}" class="sidebar-link {% if request.resolver_match.url_name == 'view_4d' %}active-link{% endif %}">
+                <svg class="w-5 h-5 mr-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                <span class="text-sm font-semibold">4D Schedule (Gantt)</span>
+            </a>
+
+            <p class="px-8 text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-6 mb-2">Resources (5D/6D)</p>
+
+            <a href="{% url 'finance' %}" class="sidebar-link {% if request.resolver_match.url_name == 'finance' %}active-link{% endif %}">
+                <svg class="w-5 h-5 mr-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m.599-2.1c1.32-.134 2.401-.514 2.401-1.07 0-.556-1.081-.936-2.401-1.07M9 14.1c-1.32-.134-2.401-.514-2.401-1.07 0-.556 1.081-.936 2.401-1.07M12 12V7.5"></path>
+                </svg>
+                <span class="text-sm font-semibold">5D Finance (EVM)</span>
+            </a>
+
+            <a href="{% url 'logistics' %}" class="sidebar-link {% if request.resolver_match.url_name == 'logistics' %}active-link{% endif %}">
+                <svg class="w-5 h-5 mr-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"></path>
+                </svg>
+                <span class="text-sm font-semibold">5D Logistics (MTO)</span>
+            </a>
+
+            <a href="{% url 'hr' %}" class="sidebar-link {% if request.resolver_match.url_name == 'hr' %}active-link{% endif %}">
+                <svg class="w-5 h-5 mr-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                </svg>
+                <span class="text-sm font-semibold">6D Workforce & HSE</span>
+            </a>
+
+            <p class="px-8 text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-6 mb-2">IAEA Standards</p>
+
+            <a href="{% url 'docs' %}" class="sidebar-link {% if request.resolver_match.url_name == 'docs' %}active-link{% endif %}">
+                <svg class="w-5 h-5 mr-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <span class="text-sm font-semibold">Document Control</span>
+            </a>
+        </nav>
+
+        <div class="border-t border-gray-100 p-4 bg-gray-50 shrink-0">
+            <div class="flex items-center px-2">
+                <div class="w-10 h-10 rounded-full bg-[#d4e9e2] border border-[#00754A] flex items-center justify-center text-[#006241] font-bold shrink-0">
+                    MS
+                </div>
+                <div class="ml-3 overflow-hidden">
+                    <p class="text-sm font-bold text-[#006241] truncate">Shaimerden M.</p>
+                    <p class="text-[10px] text-[#00754A] font-mono font-medium tracking-wide truncate">System Architect</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto p-4 md:p-8 relative w-full">
+        <div class="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] opacity-60 pointer-events-none"></div>
+
+        <div class="relative z-10 w-full max-w-7xl mx-auto h-full">
+            {% block content %}
+            {% endblock %}
+        </div>
+    </main>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+                setTimeout(() => {
+                    overlay.classList.remove('opacity-0');
+                    overlay.classList.add('opacity-100');
+                }, 10);
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.remove('opacity-100');
+                overlay.classList.add('opacity-0');
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                }, 300);
+            }
+        }
+    </script>
+</body>
+</html>

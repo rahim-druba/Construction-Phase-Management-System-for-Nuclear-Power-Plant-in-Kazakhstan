@@ -1,0 +1,253 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-3xl font-bold text-[#006241] flex items-center gap-3">
+            <svg class="w-8 h-8 text-[#00754A]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Common Data Environment (CDE)
+        </h1>
+        <p class="text-[#1E3932] opacity-70 mt-1 font-mono text-sm font-bold flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-[#00754A] animate-pulse"></span>
+            Project Estimate Documentation (PED) & BIM Control Module.
+        </p>
+    </div>
+    <div class="flex gap-3">
+        <button class="bg-white border border-[#d4e9e2] text-[#1E3932] hover:bg-[#f1f0eb] px-4 py-2 rounded-full text-sm font-bold transition-colors flex items-center gap-2 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            Search Archive
+        </button>
+        <button class="bg-[#00754A] text-white hover:bg-[#006241] px-5 py-2 rounded-full text-sm font-bold transition-colors flex items-center gap-2 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+            Upload Document
+        </button>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white p-5 rounded-2xl border border-[#d4e9e2] shadow-sm flex items-start justify-between">
+        <div>
+            <p class="text-[10px] text-[#1E3932] opacity-60 font-bold uppercase tracking-widest mb-1">Total Documents</p>
+            <p class="text-3xl font-black text-[#1E3932]">3,402</p>
+            <p class="text-xs text-[#00754A] mt-2 font-mono font-bold">+124 this month</p>
+        </div>
+        <div class="bg-[#f1f0eb] p-2 rounded-lg text-[#006241]">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+        </div>
+    </div>
+
+    <div class="bg-white p-5 rounded-2xl border border-[#d4e9e2] shadow-sm flex items-start justify-between group hover:border-orange-300 transition-colors">
+        <div>
+            <p class="text-[10px] text-[#1E3932] opacity-60 font-bold uppercase tracking-widest mb-1">Pending My Review</p>
+            <p class="text-3xl font-black text-orange-600">12</p>
+            <p class="text-xs text-orange-500 mt-2 font-mono font-bold">3 requires urgent action</p>
+        </div>
+        <div class="bg-orange-50 p-2 rounded-lg text-orange-500">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+    </div>
+
+    <div class="bg-white p-5 rounded-2xl border border-[#d4e9e2] shadow-sm flex items-start justify-between">
+        <div>
+            <p class="text-[10px] text-[#1E3932] opacity-60 font-bold uppercase tracking-widest mb-1">Approved (For Constr.)</p>
+            <p class="text-3xl font-black text-[#00754A]">2,845</p>
+            <p class="text-xs text-[#006241] mt-2 font-mono font-bold">83% approval rate</p>
+        </div>
+        <div class="bg-[#d4e9e2]/50 p-2 rounded-lg text-[#00754A]">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+    </div>
+
+    <div class="bg-white p-5 rounded-2xl border border-[#d4e9e2] shadow-sm flex items-start justify-between">
+        <div>
+            <p class="text-[10px] text-[#1E3932] opacity-60 font-bold uppercase tracking-widest mb-1">Rejected / Revisions</p>
+            <p class="text-3xl font-black text-red-600">28</p>
+            <p class="text-xs text-red-500 mt-2 font-mono font-bold">Returned to design inst.</p>
+        </div>
+        <div class="bg-red-50 p-2 rounded-lg text-red-500">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <div class="lg:col-span-8 bg-white rounded-2xl shadow-sm border border-[#d4e9e2] overflow-hidden flex flex-col h-[650px]">
+        <div class="p-5 border-b border-[#f1f0eb] flex justify-between items-center bg-white">
+            <h3 class="font-bold text-[#006241] text-sm uppercase tracking-wider font-mono">Working Documentation Registry</h3>
+            <div class="flex gap-2">
+                <span class="bg-[#f1f0eb] text-[#1E3932] opacity-70 text-[10px] font-bold uppercase tracking-wider px-4 py-2 rounded-full cursor-pointer hover:bg-[#d4e9e2] hover:opacity-100 transition-colors">All</span>
+                <span class="bg-[#d4e9e2]/40 text-[#006241] border border-[#00754A]/20 text-[10px] font-bold uppercase tracking-wider px-4 py-2 rounded-full cursor-pointer shadow-sm">Under Review (3)</span>
+            </div>
+        </div>
+
+        <div class="overflow-y-auto flex-1 custom-scrollbar">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-[#f1f0eb]/50 text-[#006241] font-mono text-[10px] uppercase tracking-wider sticky top-0 shadow-sm z-10 border-b border-[#d4e9e2]">
+                    <tr>
+                        <th class="p-4">Doc Code</th>
+                        <th class="p-4">Title / Originator</th>
+                        <th class="p-4 text-center">Ver</th>
+                        <th class="p-4 text-center">Status</th>
+                        <th class="p-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="text-[#1E3932] divide-y divide-[#f1f0eb]">
+
+                    <tr class="hover:bg-[#f1f0eb]/50 transition cursor-pointer">
+                        <td class="p-4 font-mono text-xs font-bold text-[#00754A]">NPP-10-AR-001</td>
+                        <td class="p-4 font-bold text-[13px]">
+                            Architectural Plan: Reactor Building
+                            <p class="text-[10px] text-[#1E3932] opacity-60 font-mono font-medium mt-1">Design Institute (Rosatom)</p>
+                        </td>
+                        <td class="p-4 text-center font-mono text-xs text-[#1E3932] opacity-60">v3.1</td>
+                        <td class="p-4 text-center"><span class="bg-[#d4e9e2] text-[#006241] border border-[#d4e9e2] text-[10px] px-2.5 py-1 rounded-full font-bold">FOR PRODUCTION</span></td>
+                        <td class="p-4 text-right">
+                            <button class="text-[#006241] hover:bg-[#d4e9e2] px-3 py-1.5 rounded-md font-bold text-xs transition inline-flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                View
+                            </button>
+                        </td>
+                    </tr>
+
+                    <tr class="bg-orange-50/30 border-l-4 border-orange-500 hover:bg-orange-50/60 transition cursor-pointer">
+                        <td class="p-4 font-mono text-xs font-bold text-orange-600">NPP-20-KZ-042</td>
+                        <td class="p-4 font-bold text-[13px]">
+                            RC: Foundation Slab Reinforcement
+                            <p class="text-[10px] text-orange-600 font-mono font-bold mt-1">Awaiting Signature: Chief Engineer</p>
+                        </td>
+                        <td class="p-4 text-center font-mono text-xs text-[#1E3932] opacity-60">v1.0</td>
+                        <td class="p-4 text-center"><span class="bg-orange-100 text-orange-800 border border-orange-200 text-[10px] px-2.5 py-1 rounded-full font-bold animate-pulse">UNDER REVIEW</span></td>
+                        <td class="p-4 text-right">
+                            <button class="bg-[#00754A] text-white font-bold text-[11px] px-4 py-2 rounded-full shadow-sm hover:bg-[#006241] transition w-full md:w-auto text-center inline-flex items-center justify-center gap-1.5">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                Sign (EDS)
+                            </button>
+                        </td>
+                    </tr>
+
+                    <tr class="hover:bg-[#f1f0eb]/50 transition cursor-pointer">
+                        <td class="p-4 font-mono text-xs font-bold text-[#1E3932] opacity-70">NPP-30-TX-011</td>
+                        <td class="p-4 font-bold text-[13px]">
+                            Process Piping Diagram (Cooling)
+                            <p class="text-[10px] text-[#1E3932] opacity-60 font-mono font-medium mt-1">Design Institute (KazEnergy)</p>
+                        </td>
+                        <td class="p-4 text-center font-mono text-xs text-[#1E3932] opacity-60">v2.4</td>
+                        <td class="p-4 text-center"><span class="bg-red-50 text-red-600 border border-red-200 text-[10px] px-2.5 py-1 rounded-full font-bold">REJECTED</span></td>
+                        <td class="p-4 text-right">
+                            <button class="text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-md font-bold text-xs transition inline-flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg>
+                                Remarks (12)
+                            </button>
+                        </td>
+                    </tr>
+
+                    <tr class="hover:bg-[#f1f0eb]/50 transition cursor-pointer">
+                        <td class="p-4 font-mono text-xs font-bold text-[#00754A]">NPP-40-EL-099</td>
+                        <td class="p-4 font-bold text-[13px]">
+                            Switchyard Cable Routing Plan
+                            <p class="text-[10px] text-[#1E3932] opacity-60 font-mono font-medium mt-1">KEGOC Engineering</p>
+                        </td>
+                        <td class="p-4 text-center font-mono text-xs text-[#1E3932] opacity-60">v1.2</td>
+                        <td class="p-4 text-center"><span class="bg-[#d4e9e2] text-[#006241] border border-[#d4e9e2] text-[10px] px-2.5 py-1 rounded-full font-bold">FOR PRODUCTION</span></td>
+                        <td class="p-4 text-right">
+                            <button class="text-[#006241] hover:bg-[#d4e9e2] px-3 py-1.5 rounded-md font-bold text-xs transition inline-flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                View
+                            </button>
+                        </td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="lg:col-span-4 space-y-6">
+
+        <div class="bg-white rounded-2xl shadow-sm border border-[#d4e9e2] p-5">
+            <h3 class="font-bold text-[#006241] text-xs uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-[#f1f0eb] pb-3">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                BIM Model Sync Status
+            </h3>
+
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between text-xs mb-1.5 font-bold"><span class="text-[#1E3932] opacity-80">LOD 300 (Design)</span><span class="text-[#006241]">100%</span></div>
+                    <div class="w-full bg-[#f1f0eb] rounded-full h-2 overflow-hidden"><div class="bg-[#00754A] h-full rounded-full" style="width: 100%"></div></div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-xs mb-1.5 font-bold"><span class="text-[#1E3932] opacity-80">LOD 400 (Fabrication)</span><span class="text-orange-500">68%</span></div>
+                    <div class="w-full bg-[#f1f0eb] rounded-full h-2 overflow-hidden"><div class="bg-orange-500 h-full rounded-full" style="width: 68%"></div></div>
+                    <p class="text-[9px] font-mono text-[#1E3932] opacity-50 mt-1 text-right">Linking 2D sheets to 3D elements</p>
+                </div>
+            </div>
+
+            <button class="mt-5 w-full bg-[#f1f0eb] hover:bg-[#d4e9e2] text-[#006241] font-bold text-xs py-2.5 rounded-lg transition flex justify-center items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                Force Cloud Sync
+            </button>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-[#d4e9e2] flex flex-col h-[385px]">
+            <div class="p-5 border-b border-[#f1f0eb] bg-white">
+                <h3 class="font-bold text-[#006241] text-xs uppercase tracking-widest flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Audit Trail & Activity
+                </h3>
+            </div>
+
+            <div class="p-5 space-y-5 overflow-y-auto flex-1 custom-scrollbar">
+
+                <div class="relative pl-4 border-l-2 border-[#00754A]">
+                    <div class="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-[#00754A]"></div>
+                    <div class="flex justify-between items-start">
+                        <p class="text-xs font-bold text-[#1E3932]">Approved for Production</p>
+                        <span class="text-[9px] font-mono text-gray-400">10:45 AM</span>
+                    </div>
+                    <p class="text-[11px] text-[#1E3932] opacity-70 mt-0.5">NPP-10-AR-001</p>
+                    <p class="text-[10px] font-mono text-[#006241] mt-1 bg-[#d4e9e2]/30 inline-block px-1.5 py-0.5 rounded">User: D. Kassymov (Site Dir)</p>
+                </div>
+
+                <div class="relative pl-4 border-l-2 border-red-500">
+                    <div class="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-red-500"></div>
+                    <div class="flex justify-between items-start">
+                        <p class="text-xs font-bold text-[#1E3932]">Document Rejected</p>
+                        <span class="text-[9px] font-mono text-gray-400">09:12 AM</span>
+                    </div>
+                    <p class="text-[11px] text-[#1E3932] opacity-70 mt-0.5">NPP-30-TX-011</p>
+                    <p class="text-[10px] font-mono text-red-600 mt-1 bg-red-50 inline-block px-1.5 py-0.5 rounded">Reason: Inconsistent pipe specs</p>
+                </div>
+
+                <div class="relative pl-4 border-l-2 border-gray-300">
+                    <div class="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-gray-300"></div>
+                    <div class="flex justify-between items-start">
+                        <p class="text-xs font-bold text-[#1E3932]">New Revision Uploaded</p>
+                        <span class="text-[9px] font-mono text-gray-400">Yesterday</span>
+                    </div>
+                    <p class="text-[11px] text-[#1E3932] opacity-70 mt-0.5">NPP-40-EL-099 (v1.2)</p>
+                    <p class="text-[10px] font-mono text-gray-500 mt-1 bg-gray-100 inline-block px-1.5 py-0.5 rounded">User: K. Smirnov (Vendor)</p>
+                </div>
+
+                <div class="relative pl-4 border-l-2 border-orange-500">
+                    <div class="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-orange-500"></div>
+                    <div class="flex justify-between items-start">
+                        <p class="text-xs font-bold text-[#1E3932]">Sent for Signature</p>
+                        <span class="text-[9px] font-mono text-gray-400">Yesterday</span>
+                    </div>
+                    <p class="text-[11px] text-[#1E3932] opacity-70 mt-0.5">NPP-20-KZ-042</p>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #d4e9e2; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #00754A; }
+</style>
+{% endblock %}
